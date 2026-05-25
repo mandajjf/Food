@@ -583,8 +583,8 @@ def new_restaurant():
 @login_required
 def delete_restaurant(id):
     restaurant = Restaurant.query.get_or_404(id)
-    if restaurant.created_by != session["user_id"]:
-        flash("只能刪除自己新增的餐廳。", "danger")
+    if restaurant.created_by is None:
+        flash("系統預設餐廳不可刪除。", "danger")
         return redirect(url_for("restaurants"))
     db.session.delete(restaurant)
     db.session.commit()
