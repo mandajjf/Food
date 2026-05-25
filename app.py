@@ -302,6 +302,15 @@ def new_review():
             protein=protein,
         )
         db.session.add(review)
+
+        # 若餐廳不在資料庫中，自動建立一筆基本紀錄
+        if not Restaurant.query.filter_by(name=restaurant_name).first():
+            new_restaurant = Restaurant(
+                name=restaurant_name,
+                address=address or None,
+            )
+            db.session.add(new_restaurant)
+
         db.session.commit()
 
         flash("美食紀錄新增成功！", "success")
@@ -464,6 +473,14 @@ def edit_review(id):
         review.calories = calories
         review.protein = protein
         review.updated_at = datetime.utcnow()
+
+        # 若餐廳不在資料庫中，自動建立一筆基本紀錄
+        if not Restaurant.query.filter_by(name=restaurant_name).first():
+            new_restaurant = Restaurant(
+                name=restaurant_name,
+                address=address or None,
+            )
+            db.session.add(new_restaurant)
 
         db.session.commit()
 

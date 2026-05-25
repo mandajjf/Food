@@ -14,7 +14,7 @@
       <a href="{{ url_for('index') }}" class="navbar-brand">🍜 回味無窮</a>
       <div class="navbar-links">
         {% if session.get('user_id') %}
-          <a href="{{ url_for('dashboard') }}" class="nav-link">儀表板</a>
+          <a href="{{ url_for('dashboard') }}" class="nav-link">首頁</a>
           <a href="{{ url_for('new_review') }}" class="nav-link">新增紀錄</a>
           <a href="{{ url_for('diary') }}" class="nav-link">美食日記</a>
           <a href="{{ url_for('food_map') }}" class="nav-link">美食地圖</a>
