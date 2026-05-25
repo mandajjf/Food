@@ -33,3 +33,31 @@ class Review(db.Model):
     updated_at = db.Column(
         db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow
     )
+
+
+class Restaurant(db.Model):
+    __tablename__ = "restaurants"
+
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(200), unique=True, nullable=False)
+    address = db.Column(db.String(300))
+    area = db.Column(db.String(100))
+    cuisine_style = db.Column(db.String(100))
+    category = db.Column(db.String(200))
+    is_healthy = db.Column(db.Boolean, default=False)
+    price_level = db.Column(db.Integer)
+
+    menu_items = db.relationship(
+        "MenuItem", backref="restaurant", lazy=True, cascade="all, delete-orphan"
+    )
+
+
+class MenuItem(db.Model):
+    __tablename__ = "menu_items"
+
+    id = db.Column(db.Integer, primary_key=True)
+    restaurant_id = db.Column(db.Integer, db.ForeignKey("restaurants.id"), nullable=False)
+    item_name = db.Column(db.String(300), nullable=False)
+    price = db.Column(db.Float)
+    calories = db.Column(db.Float)
+    protein = db.Column(db.Float)

@@ -15,10 +15,30 @@
         id="restaurant_name"
         name="restaurant_name"
         class="form-control"
-        placeholder="例：鼎泰豐、一蘭拉麵"
-        value="{{ form.restaurant_name if form else '' }}"
+        placeholder="輸入餐廳名稱，或從下方清單選擇"
+        value="{{ form.restaurant_name if form else (request.args.get('restaurant', '')) }}"
+        list="restaurant-list"
+        autocomplete="off"
         required
       >
+      {% if restaurant_names %}
+        <datalist id="restaurant-list">
+          {% for name in restaurant_names %}
+            <option value="{{ name }}">
+          {% endfor %}
+        </datalist>
+        <p class="form-hint">輸入文字可從 {{ restaurant_names | length }} 間台大餐廳中搜尋</p>
+      {% else %}
+        <datalist id="restaurant-list"></datalist>
+      {% endif %}
+    </div>
+
+    <!-- 選擇菜色（選到餐廳後才顯示） -->
+    <div id="menu-container" class="form-group" style="display:none;">
+      <label for="menu_select">選擇菜色 <span class="form-hint" style="font-weight:400;">（選填，自動帶入售價）</span></label>
+      <select id="menu_select" class="form-control">
+        <option value="">-- 選擇菜色 --</option>
+      </select>
     </div>
 
     <div class="form-grid-2">
@@ -90,7 +110,7 @@
         id="address"
         name="address"
         class="form-control"
-        placeholder="例：台北市大安區信義路四段 1 號（可留空）"
+        placeholder="例：台北市大安區羅斯福路四段 1 號（可留空）"
         value="{{ form.address if form else '' }}"
       >
       <p class="form-hint">填入地址後可在美食地圖中顯示位置</p>
@@ -114,4 +134,49 @@
 
   </form>
 </div>
+
+<script>
+(function () {
+  const input   = document.getElementById('restaurant_name');
+  const list    = document.getElementById('restaurant-list');
+  const menuBox = document.getElementById('menu-container');
+  const menuSel = document.getElementById('menu_select');
+  const price   = document.getElementById('price');
+
+  function loadMenu(name) {
+    if (!name) { menuBox.style.display = 'none'; return; }
+    fetch('/api/menu?restaurant=' + encodeURIComponent(name))
+      .then(r => r.ok ? r.json() : [])
+      .then(items => {
+        if (!items.length) { menuBox.style.display = 'none'; return; }
+        menuSel.innerHTML = '<option value="">-- 選擇菜色 --</option>';
+        items.forEach(item => {
+          const opt = document.createElement('option');
+          opt.value = item.price != null ? item.price : '';
+          opt.textContent = item.price != null
+            ? item.item_name + '（NT$' + item.price + '）'
+            : item.item_name;
+          menuSel.appendChild(opt);
+        });
+        menuBox.style.display = 'block';
+      })
+      .catch(() => { menuBox.style.display = 'none'; });
+  }
+
+  function checkExact() {
+    const opts = Array.from(list.options).map(o => o.value);
+    if (opts.includes(input.value)) loadMenu(input.value);
+    else menuBox.style.display = 'none';
+  }
+
+  input.addEventListener('change', checkExact);
+  input.addEventListener('input',  checkExact);
+  menuSel.addEventListener('change', function () {
+    if (this.value !== '') price.value = this.value;
+  });
+
+  // 如果從餐廳頁帶入餐廳名，自動載入菜單
+  if (input.value) loadMenu(input.value);
+})();
+</script>
 {% endblock %}

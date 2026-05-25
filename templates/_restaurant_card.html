@@ -1,0 +1,56 @@
+<div class="r-card">
+  <div class="r-card-header">
+    <div class="r-name">{{ r.name }}</div>
+    {% if r.area %}
+      <span class="tag tag-area">{{ r.area }}</span>
+    {% endif %}
+  </div>
+
+  <div class="r-card-meta">
+    {% if r.cuisine_style %}
+      <span class="tag tag-cat">{{ r.cuisine_style }}</span>
+    {% endif %}
+    {% if r.category %}
+      <span class="r-category">{{ r.category }}</span>
+    {% endif %}
+  </div>
+
+  <div class="r-card-footer">
+    {% if r.address %}
+      <div class="r-address">📍 {{ r.address }}</div>
+    {% endif %}
+    <div class="r-card-actions">
+      {% if r.is_healthy %}
+        <span class="r-badge-healthy">🥗 健康</span>
+      {% endif %}
+      {% if r.price_level is not none %}
+        <span class="r-price-level">
+          {% if r.price_level == 0 %}免費
+          {% elif r.price_level == 1 %}$
+          {% elif r.price_level == 2 %}$$
+          {% elif r.price_level == 3 %}$$$
+          {% elif r.price_level >= 4 %}$$$$
+          {% endif %}
+        </span>
+      {% endif %}
+      <a href="{{ url_for('new_review') }}?restaurant={{ r.name | urlencode }}"
+         class="btn btn-outline btn-sm">＋ 新增紀錄</a>
+    </div>
+  </div>
+
+  {% if r.menu_items %}
+    <details class="r-menu">
+      <summary class="r-menu-summary">查看菜單（{{ r.menu_items | length }} 道）</summary>
+      <div class="r-menu-list">
+        {% for item in r.menu_items | sort(attribute='item_name') %}
+          <div class="r-menu-item">
+            <span class="r-menu-name">{{ item.item_name }}</span>
+            {% if item.price %}
+              <span class="r-menu-price">NT${{ item.price | int }}</span>
+            {% endif %}
+          </div>
+        {% endfor %}
+      </div>
+    </details>
+  {% endif %}
+</div>

@@ -16,8 +16,27 @@
         name="restaurant_name"
         class="form-control"
         value="{{ review.restaurant_name }}"
+        list="restaurant-list"
+        autocomplete="off"
         required
       >
+      {% if restaurant_names %}
+        <datalist id="restaurant-list">
+          {% for name in restaurant_names %}
+            <option value="{{ name }}">
+          {% endfor %}
+        </datalist>
+      {% else %}
+        <datalist id="restaurant-list"></datalist>
+      {% endif %}
+    </div>
+
+    <!-- 選擇菜色（選到餐廳後才顯示） -->
+    <div id="menu-container" class="form-group" style="display:none;">
+      <label for="menu_select">選擇菜色 <span class="form-hint" style="font-weight:400;">（選填，自動帶入售價）</span></label>
+      <select id="menu_select" class="form-control">
+        <option value="">-- 選擇菜色 --</option>
+      </select>
     </div>
 
     <div class="form-grid-2">
@@ -110,4 +129,46 @@
 
   </form>
 </div>
+
+<script>
+(function () {
+  const input   = document.getElementById('restaurant_name');
+  const list    = document.getElementById('restaurant-list');
+  const menuBox = document.getElementById('menu-container');
+  const menuSel = document.getElementById('menu_select');
+  const price   = document.getElementById('price');
+
+  function loadMenu(name) {
+    if (!name) { menuBox.style.display = 'none'; return; }
+    fetch('/api/menu?restaurant=' + encodeURIComponent(name))
+      .then(r => r.ok ? r.json() : [])
+      .then(items => {
+        if (!items.length) { menuBox.style.display = 'none'; return; }
+        menuSel.innerHTML = '<option value="">-- 選擇菜色 --</option>';
+        items.forEach(item => {
+          const opt = document.createElement('option');
+          opt.value = item.price != null ? item.price : '';
+          opt.textContent = item.price != null
+            ? item.item_name + '（NT$' + item.price + '）'
+            : item.item_name;
+          menuSel.appendChild(opt);
+        });
+        menuBox.style.display = 'block';
+      })
+      .catch(() => { menuBox.style.display = 'none'; });
+  }
+
+  function checkExact() {
+    const opts = Array.from(list.options).map(o => o.value);
+    if (opts.includes(input.value)) loadMenu(input.value);
+    else menuBox.style.display = 'none';
+  }
+
+  input.addEventListener('change', checkExact);
+  input.addEventListener('input',  checkExact);
+  menuSel.addEventListener('change', function () {
+    if (this.value !== '') price.value = this.value;
+  });
+})();
+</script>
 {% endblock %}

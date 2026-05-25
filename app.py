@@ -8,6 +8,7 @@ from flask import (
     Flask,
     abort,
     flash,
+    jsonify,
     redirect,
     render_template,
     request,
@@ -18,7 +19,7 @@ from flask import (
 load_dotenv()
 
 from database import db
-from models import Review, User
+from models import MenuItem, Restaurant, Review, User
 
 # ---------------------------------------------------------------------------
 # App factory
@@ -273,11 +274,15 @@ def new_review():
         flash("美食紀錄新增成功！", "success")
         return redirect(url_for("diary"))
 
+    restaurant_names = [
+        r.name for r in Restaurant.query.order_by(Restaurant.name).all()
+    ]
     return render_template(
         "new_review.html",
         meal_types=MEAL_TYPES,
         categories=CATEGORIES,
         form={"visit_date": date.today().isoformat()},
+        restaurant_names=restaurant_names,
     )
 
 
@@ -395,11 +400,15 @@ def edit_review(id):
         flash("紀錄更新成功！", "success")
         return redirect(url_for("diary"))
 
+    restaurant_names = [
+        r.name for r in Restaurant.query.order_by(Restaurant.name).all()
+    ]
     return render_template(
         "edit_review.html",
         review=review,
         meal_types=MEAL_TYPES,
         categories=CATEGORIES,
+        restaurant_names=restaurant_names,
     )
 
 
@@ -436,6 +445,44 @@ def food_map():
         .all()
     )
     return render_template("food_map.html", reviews=reviews)
+
+
+# ---------------------------------------------------------------------------
+
+# ── 餐廳資料庫 ────────────────────────────────────────────────────────────
+
+@app.route("/restaurants")
+def restaurants():
+    all_restaurants = (
+        Restaurant.query
+        .order_by(Restaurant.area, Restaurant.name)
+        .all()
+    )
+    return render_template("restaurants.html", restaurants=all_restaurants)
+
+
+# ── API：菜單品項（供 new_review 的 JS 使用）────────────────────────────
+
+@app.route("/api/menu")
+def api_menu():
+    name = request.args.get("restaurant", "").strip()
+    if not name:
+        return jsonify([])
+    restaurant = Restaurant.query.filter_by(name=name).first()
+    if not restaurant:
+        return jsonify([])
+    items = (
+        MenuItem.query.filter_by(restaurant_id=restaurant.id)
+        .order_by(MenuItem.price)
+        .all()
+    )
+    return jsonify([
+        {
+            "item_name": item.item_name,
+            "price": int(item.price) if item.price and item.price == int(item.price) else item.price,
+        }
+        for item in items
+    ])
 
 
 # ---------------------------------------------------------------------------
