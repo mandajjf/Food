@@ -1,0 +1,117 @@
+{% extends "base.html" %}
+{% block title %}新增美食紀錄{% endblock %}
+
+{% block content %}
+<div class="form-card" style="max-width: 620px;">
+  <h1 class="form-title">新增美食紀錄 ✏️</h1>
+  <p class="form-subtitle">記下這次的用餐體驗</p>
+
+  <form action="{{ url_for('new_review') }}" method="POST" novalidate>
+
+    <div class="form-group">
+      <label for="restaurant_name">餐廳名稱 <span class="required">*</span></label>
+      <input
+        type="text"
+        id="restaurant_name"
+        name="restaurant_name"
+        class="form-control"
+        placeholder="例：鼎泰豐、一蘭拉麵"
+        value="{{ form.restaurant_name if form else '' }}"
+        required
+      >
+    </div>
+
+    <div class="form-grid-2">
+      <div class="form-group">
+        <label for="visit_date">用餐日期 <span class="required">*</span></label>
+        <input
+          type="date"
+          id="visit_date"
+          name="visit_date"
+          class="form-control"
+          value="{{ form.visit_date if form else '' }}"
+          required
+        >
+      </div>
+
+      <div class="form-group">
+        <label for="meal_type">餐別</label>
+        <select id="meal_type" name="meal_type" class="form-control">
+          <option value="">-- 請選擇 --</option>
+          {% for mt in meal_types %}
+            <option value="{{ mt }}" {% if form and form.meal_type == mt %}selected{% endif %}>{{ mt }}</option>
+          {% endfor %}
+        </select>
+      </div>
+    </div>
+
+    <div class="form-grid-2">
+      <div class="form-group">
+        <label for="category">料理類別</label>
+        <select id="category" name="category" class="form-control">
+          <option value="">-- 請選擇 --</option>
+          {% for cat in categories %}
+            <option value="{{ cat }}" {% if form and form.category == cat %}selected{% endif %}>{{ cat }}</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label for="rating">評分（1–5 顆星）</label>
+        <select id="rating" name="rating" class="form-control">
+          <option value="">-- 請選擇 --</option>
+          {% for i in range(1, 6) %}
+            <option value="{{ i }}" {% if form and form.rating == i|string %}selected{% endif %}>
+              {{ '★' * i }}{{ '☆' * (5 - i) }} {{ i }} 星
+            </option>
+          {% endfor %}
+        </select>
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label for="price">消費金額（NT$）</label>
+      <input
+        type="number"
+        id="price"
+        name="price"
+        class="form-control"
+        placeholder="例：350（可留空）"
+        min="0"
+        step="1"
+        value="{{ form.price if form else '' }}"
+      >
+    </div>
+
+    <div class="form-group">
+      <label for="address">地址</label>
+      <input
+        type="text"
+        id="address"
+        name="address"
+        class="form-control"
+        placeholder="例：台北市大安區信義路四段 1 號（可留空）"
+        value="{{ form.address if form else '' }}"
+      >
+      <p class="form-hint">填入地址後可在美食地圖中顯示位置</p>
+    </div>
+
+    <div class="form-group">
+      <label for="comment">心得評論</label>
+      <textarea
+        id="comment"
+        name="comment"
+        class="form-control"
+        placeholder="寫下你的用餐感受、推薦菜色、注意事項…"
+        rows="4"
+      >{{ form.comment if form else '' }}</textarea>
+    </div>
+
+    <div class="form-actions">
+      <button type="submit" class="btn btn-primary">儲存紀錄</button>
+      <a href="{{ url_for('diary') }}" class="btn btn-secondary">取消</a>
+    </div>
+
+  </form>
+</div>
+{% endblock %}

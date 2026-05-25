@@ -1,0 +1,21 @@
+services:
+  - type: web
+    name: foodmap-web
+    env: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn app:app
+    envVars:
+      - key: SECRET_KEY
+        generateValue: true
+      - key: DATABASE_URL
+        fromDatabase:
+          name: foodmap-db
+          property: connectionString
+      - key: FLASK_ENV
+        value: production
+
+databases:
+  - name: foodmap-db
+    databaseName: foodmap
+    user: foodmap_user
+    plan: free

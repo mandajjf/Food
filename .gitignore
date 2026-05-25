@@ -1,0 +1,32 @@
+# 環境變數（絕對不可上傳）
+.env
+
+# 本機資料庫
+instance/
+
+# Python 快取
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.pdb
+
+# 虛擬環境
+.venv/
+venv/
+env/
+
+# macOS
+.DS_Store
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# 測試/舊檔
+test.py
+ChangeLog.md
+restaurants.json
+foodlog.json

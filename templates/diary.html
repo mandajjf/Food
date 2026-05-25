@@ -1,0 +1,142 @@
+{% extends "base.html" %}
+{% block title %}美食日記{% endblock %}
+
+{% block content %}
+<div class="page-header" style="display:flex; align-items:flex-start; justify-content:space-between; flex-wrap:wrap; gap:1rem;">
+  <div>
+    <h1 class="page-title">我的美食日記 📖</h1>
+    <p class="page-subtitle">
+      {% if reviews %}
+        共 {{ reviews | length }} 筆紀錄
+        {% if keyword or filter_category or filter_meal_type %}（已套用篩選）{% endif %}
+      {% else %}
+        尚無符合條件的紀錄
+      {% endif %}
+    </p>
+  </div>
+  <a href="{{ url_for('new_review') }}" class="btn btn-primary">＋ 新增紀錄</a>
+</div>
+
+<!-- 篩選列 -->
+<form action="{{ url_for('diary') }}" method="GET">
+  <div class="filter-bar">
+    <div class="filter-group" style="flex:2; min-width:180px;">
+      <label for="keyword">關鍵字搜尋</label>
+      <input
+        type="text"
+        id="keyword"
+        name="keyword"
+        class="filter-control"
+        placeholder="餐廳名稱或評論關鍵字"
+        value="{{ keyword }}"
+      >
+    </div>
+
+    <div class="filter-group">
+      <label for="category">料理類別</label>
+      <select id="category" name="category" class="filter-control">
+        <option value="">全部類別</option>
+        {% for cat in categories %}
+          <option value="{{ cat }}" {% if filter_category == cat %}selected{% endif %}>{{ cat }}</option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <div class="filter-group">
+      <label for="meal_type">餐別</label>
+      <select id="meal_type" name="meal_type" class="filter-control">
+        <option value="">全部餐別</option>
+        {% for mt in meal_types %}
+          <option value="{{ mt }}" {% if filter_meal_type == mt %}selected{% endif %}>{{ mt }}</option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <div style="display:flex; gap:0.5rem; align-items:flex-end; padding-bottom:0.1rem;">
+      <button type="submit" class="btn btn-primary btn-sm">搜尋</button>
+      {% if keyword or filter_category or filter_meal_type %}
+        <a href="{{ url_for('diary') }}" class="btn btn-secondary btn-sm">清除</a>
+      {% endif %}
+    </div>
+  </div>
+</form>
+
+<!-- 紀錄列表 -->
+{% if reviews %}
+  <div class="reviews-grid">
+    {% for review in reviews %}
+      <div class="review-card">
+
+        <div class="review-card-header">
+          <div>
+            <div class="review-name">{{ review.restaurant_name }}</div>
+            <div class="review-date">{{ review.visit_date.strftime('%Y 年 %m 月 %d 日') }}</div>
+          </div>
+          <div style="display:flex; gap:0.4rem; flex-wrap:wrap; justify-content:flex-end;">
+            {% if review.meal_type %}
+              <span class="tag tag-meal">{{ review.meal_type }}</span>
+            {% endif %}
+            {% if review.category %}
+              <span class="tag tag-cat">{{ review.category }}</span>
+            {% endif %}
+          </div>
+        </div>
+
+        <div class="review-card-body">
+          {% if review.rating %}
+            <div class="review-meta">
+              <span class="stars">
+                {% for i in range(1, 6) %}{{ '★' if i <= review.rating else '☆' }}{% endfor %}
+              </span>
+              <span style="color:var(--text-muted); font-size:0.78rem;">{{ review.rating }}/5</span>
+            </div>
+          {% endif %}
+          {% if review.price is not none %}
+            <div class="review-meta price-badge">
+              💰 {{ review.price | format_price }}
+            </div>
+          {% endif %}
+        </div>
+
+        {% if review.comment %}
+          <div class="review-comment">{{ review.comment }}</div>
+        {% endif %}
+
+        {% if review.address %}
+          <div class="review-address">
+            📍 {{ review.address }}
+          </div>
+        {% endif %}
+
+        <div class="review-card-footer">
+          <a href="{{ url_for('edit_review', id=review.id) }}" class="btn btn-outline btn-sm">編輯</a>
+          <form
+            action="{{ url_for('delete_review', id=review.id) }}"
+            method="POST"
+            onsubmit="return confirm('確定要刪除「{{ review.restaurant_name }}」的紀錄嗎？')"
+            style="display:inline;"
+          >
+            <button type="submit" class="btn btn-danger btn-sm">刪除</button>
+          </form>
+        </div>
+
+      </div>
+    {% endfor %}
+  </div>
+
+{% else %}
+  <div class="empty-state">
+    <span class="empty-icon">🍽️</span>
+    {% if keyword or filter_category or filter_meal_type %}
+      <h3>沒有符合條件的紀錄</h3>
+      <p>試著調整篩選條件，或是清除篩選看所有紀錄。</p>
+      <a href="{{ url_for('diary') }}" class="btn btn-secondary">清除篩選</a>
+    {% else %}
+      <h3>還沒有美食紀錄</h3>
+      <p>開始新增第一筆，記下你的美食故事吧！</p>
+      <a href="{{ url_for('new_review') }}" class="btn btn-primary">＋ 新增第一筆紀錄</a>
+    {% endif %}
+  </div>
+{% endif %}
+
+{% endblock %}

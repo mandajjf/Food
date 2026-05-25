@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% block title %}首頁{% endblock %}
+
+{% block content %}
+<section class="hero">
+  <span class="hero-emoji">🍜</span>
+  <h1 class="hero-title">回味無窮</h1>
+  <p class="hero-subtitle">
+    記下每一口難忘的美食，打造你的專屬美食地圖與日記，
+    讓美好滋味永遠留在記憶裡。
+  </p>
+  <div class="hero-actions">
+    <a href="{{ url_for('sign_up') }}" class="btn btn-primary btn-lg">立即免費加入</a>
+    <a href="{{ url_for('login') }}" class="btn btn-outline btn-lg">登入帳號</a>
+  </div>
+</section>
+
+<div class="feature-grid">
+  <div class="feature-item">
+    <span class="icon">📖</span>
+    <h3>美食日記</h3>
+    <p>記錄每一次的用餐體驗，附上評分、評論與照片</p>
+  </div>
+  <div class="feature-item">
+    <span class="icon">🗺️</span>
+    <h3>美食地圖</h3>
+    <p>依地址快速找到吃過的餐廳，一鍵開啟 Google Maps</p>
+  </div>
+  <div class="feature-item">
+    <span class="icon">🔍</span>
+    <h3>輕鬆搜尋</h3>
+    <p>依餐廳名稱、類別、餐別快速篩選你的美食紀錄</p>
+  </div>
+  <div class="feature-item">
+    <span class="icon">🔒</span>
+    <h3>專屬隱私</h3>
+    <p>每位使用者只能看到自己的紀錄，安全有保障</p>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% block title %}儀表板{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <p class="dashboard-welcome">你好，{{ session['username'] }}！👋</p>
+  <p class="dashboard-stats">
+    {% if review_count == 0 %}
+      還沒有任何美食紀錄，趕快新增第一筆吧！
+    {% elif review_count == 1 %}
+      你已有 1 筆美食紀錄。
+    {% else %}
+      你已累積 {{ review_count }} 筆美食紀錄。繼續探索！
+    {% endif %}
+  </p>
+</div>
+
+<div class="dashboard-grid">
+  <a href="{{ url_for('new_review') }}" class="dashboard-card">
+    <span class="dc-icon">✏️</span>
+    <div class="dc-title">新增美食紀錄</div>
+    <div class="dc-desc">記下今天吃到的美味</div>
+  </a>
+
+  <a href="{{ url_for('diary') }}" class="dashboard-card">
+    <span class="dc-icon">📖</span>
+    <div class="dc-title">我的美食日記</div>
+    <div class="dc-desc">瀏覽、搜尋所有紀錄</div>
+  </a>
+
+  <a href="{{ url_for('food_map') }}" class="dashboard-card">
+    <span class="dc-icon">🗺️</span>
+    <div class="dc-title">美食地圖</div>
+    <div class="dc-desc">在地圖上找你去過的地方</div>
+  </a>
+
+  <a href="{{ url_for('logout') }}" class="dashboard-card" style="border-color: var(--border);">
+    <span class="dc-icon">👋</span>
+    <div class="dc-title">登出</div>
+    <div class="dc-desc">安全離開帳號</div>
+  </a>
+</div>
+{% endblock %}
