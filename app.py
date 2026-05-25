@@ -64,8 +64,9 @@ with app.app_context():
             conn.rollback()
 
     with db.engine.connect() as _conn:
-        _add_column_if_missing(_conn, "reviews", "calories", "FLOAT")
-        _add_column_if_missing(_conn, "reviews", "protein",  "FLOAT")
+        _add_column_if_missing(_conn, "reviews",     "calories",   "FLOAT")
+        _add_column_if_missing(_conn, "reviews",     "protein",    "FLOAT")
+        _add_column_if_missing(_conn, "restaurants", "created_by", "INTEGER")
 
 
 # ---------------------------------------------------------------------------
@@ -305,11 +306,11 @@ def new_review():
 
         # 若餐廳不在資料庫中，自動建立一筆基本紀錄
         if not Restaurant.query.filter_by(name=restaurant_name).first():
-            new_restaurant = Restaurant(
+            db.session.add(Restaurant(
                 name=restaurant_name,
                 address=address or None,
-            )
-            db.session.add(new_restaurant)
+                created_by=session["user_id"],
+            ))
 
         db.session.commit()
 
@@ -476,11 +477,11 @@ def edit_review(id):
 
         # 若餐廳不在資料庫中，自動建立一筆基本紀錄
         if not Restaurant.query.filter_by(name=restaurant_name).first():
-            new_restaurant = Restaurant(
+            db.session.add(Restaurant(
                 name=restaurant_name,
                 address=address or None,
-            )
-            db.session.add(new_restaurant)
+                created_by=session["user_id"],
+            ))
 
         db.session.commit()
 
@@ -539,13 +540,56 @@ def food_map():
 # ── 餐廳資料庫 ────────────────────────────────────────────────────────────
 
 @app.route("/restaurants")
+@login_required
 def restaurants():
     all_restaurants = (
         Restaurant.query
         .order_by(Restaurant.area, Restaurant.name)
         .all()
     )
-    return render_template("restaurants.html", restaurants=all_restaurants)
+    return render_template(
+        "restaurants.html",
+        restaurants=all_restaurants,
+        current_user_id=session["user_id"],
+    )
+
+
+@app.route("/restaurants/new", methods=["POST"])
+@login_required
+def new_restaurant():
+    name = request.form.get("name", "").strip()
+    if not name:
+        flash("餐廳名稱不可為空。", "danger")
+        return redirect(url_for("restaurants"))
+
+    if Restaurant.query.filter_by(name=name).first():
+        flash(f"「{name}」已存在於資料庫中。", "warning")
+        return redirect(url_for("restaurants"))
+
+    restaurant = Restaurant(
+        name=name,
+        address=request.form.get("address", "").strip() or None,
+        area=request.form.get("area", "").strip() or None,
+        cuisine_style=request.form.get("cuisine_style", "").strip() or None,
+        created_by=session["user_id"],
+    )
+    db.session.add(restaurant)
+    db.session.commit()
+    flash(f"「{name}」已成功加入餐廳資料庫！", "success")
+    return redirect(url_for("restaurants"))
+
+
+@app.route("/restaurants/<int:id>/delete", methods=["POST"])
+@login_required
+def delete_restaurant(id):
+    restaurant = Restaurant.query.get_or_404(id)
+    if restaurant.created_by != session["user_id"]:
+        flash("只能刪除自己新增的餐廳。", "danger")
+        return redirect(url_for("restaurants"))
+    db.session.delete(restaurant)
+    db.session.commit()
+    flash(f"「{restaurant.name}」已刪除。", "success")
+    return redirect(url_for("restaurants"))
 
 
 # ── API：菜單品項（供 new_review 的 JS 使用）────────────────────────────

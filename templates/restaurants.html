@@ -7,9 +7,41 @@
   <p class="page-subtitle">台大校園周邊 {{ restaurants | length }} 間餐廳資料</p>
 </div>
 
-{% if restaurants %}
-  {% set areas = restaurants | map(attribute='area') | select | unique | list %}
+<!-- 新增餐廳表單 -->
+<div class="form-card" style="max-width:100%; margin-bottom:2rem;">
+  <h2 class="form-title" style="font-size:1.1rem; margin-bottom:1rem;">＋ 新增餐廳</h2>
+  <form action="{{ url_for('new_restaurant') }}" method="POST" novalidate>
+    <div class="form-grid-2" style="gap:0.75rem;">
+      <div class="form-group" style="margin-bottom:0;">
+        <label for="r-name">餐廳名稱 <span class="required">*</span></label>
+        <input type="text" id="r-name" name="name" class="form-control"
+          placeholder="必填" required>
+      </div>
+      <div class="form-group" style="margin-bottom:0;">
+        <label for="r-area">區域</label>
+        <input type="text" id="r-area" name="area" class="form-control"
+          placeholder="如：醉月湖旁（可留空）">
+      </div>
+    </div>
+    <div class="form-grid-2" style="gap:0.75rem; margin-top:0.75rem;">
+      <div class="form-group" style="margin-bottom:0;">
+        <label for="r-address">地址</label>
+        <input type="text" id="r-address" name="address" class="form-control"
+          placeholder="可留空">
+      </div>
+      <div class="form-group" style="margin-bottom:0;">
+        <label for="r-cuisine">料理風格</label>
+        <input type="text" id="r-cuisine" name="cuisine_style" class="form-control"
+          placeholder="如：台式、日式（可留空）">
+      </div>
+    </div>
+    <div class="form-actions" style="margin-top:1rem; padding-top:0.75rem; border-top:1px solid var(--border-light);">
+      <button type="submit" class="btn btn-primary btn-sm">新增</button>
+    </div>
+  </form>
+</div>
 
+{% if restaurants %}
   {% set area_order = ['醉月湖旁', '第一學生活動中心', '鹿鳴廣場（舟山路）', '第二學生活動中心', '禮賢樓（美德耐商場）', '新體', '次震宇宙館'] %}
 
   {% for area in area_order %}
@@ -24,10 +56,9 @@
     {% endif %}
   {% endfor %}
 
-  {% set has_area_restaurants = restaurants | selectattr('area') | list %}
   {% set no_area_restaurants = restaurants | rejectattr('area') | list %}
   {% if no_area_restaurants %}
-    <h2 class="area-title">📋 其他餐廳（菜單資料）</h2>
+    <h2 class="area-title">📋 其他餐廳</h2>
     <div class="restaurant-grid mb-3">
       {% for r in no_area_restaurants %}
         {% include '_restaurant_card.html' %}
@@ -39,10 +70,7 @@
   <div class="empty-state">
     <span class="empty-icon">🏪</span>
     <h3>尚無餐廳資料</h3>
-    <p>請執行 seed.py 匯入餐廳資料。</p>
-    <code style="font-size:0.82rem; background:var(--border-light); padding:0.4rem 0.75rem; border-radius:4px; display:inline-block; margin-top:0.5rem;">
-      python seed.py /path/to/餐廳資料資訊庫.xlsx
-    </code>
+    <p>使用上方表單新增第一間餐廳吧！</p>
   </div>
 {% endif %}
 

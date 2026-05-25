@@ -48,6 +48,7 @@ class Restaurant(db.Model):
     category = db.Column(db.String(200))
     is_healthy = db.Column(db.Boolean, default=False)
     price_level = db.Column(db.Integer)
+    created_by = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True)
 
     menu_items = db.relationship(
         "MenuItem", backref="restaurant", lazy=True, cascade="all, delete-orphan"
