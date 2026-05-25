@@ -67,6 +67,16 @@ with app.app_context():
         _add_column_if_missing(_conn, "reviews",     "calories",   "FLOAT")
         _add_column_if_missing(_conn, "reviews",     "protein",    "FLOAT")
         _add_column_if_missing(_conn, "restaurants", "created_by", "INTEGER")
+        _add_column_if_missing(_conn, "restaurants", "is_seeded",  "BOOLEAN DEFAULT FALSE")
+        # 將 seed 匯入的餐廳（created_by IS NULL）標記為 is_seeded = TRUE
+        try:
+            _conn.execute(db.text(
+                "UPDATE restaurants SET is_seeded = TRUE "
+                "WHERE created_by IS NULL AND (is_seeded IS NULL OR is_seeded = FALSE)"
+            ))
+            _conn.commit()
+        except Exception:
+            _conn.rollback()
 
 
 # ---------------------------------------------------------------------------
@@ -583,7 +593,7 @@ def new_restaurant():
 @login_required
 def delete_restaurant(id):
     restaurant = Restaurant.query.get_or_404(id)
-    if restaurant.created_by is None:
+    if restaurant.is_seeded:
         flash("系統預設餐廳不可刪除。", "danger")
         return redirect(url_for("restaurants"))
     db.session.delete(restaurant)

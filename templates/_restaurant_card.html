@@ -35,7 +35,7 @@
       {% endif %}
       <a href="{{ url_for('new_review') }}?restaurant={{ r.name | urlencode }}"
          class="btn btn-outline btn-sm">＋ 新增紀錄</a>
-      {% if r.created_by is not none %}
+      {% if not r.is_seeded %}
         <form action="{{ url_for('delete_restaurant', id=r.id) }}" method="POST"
           onsubmit="return confirm('確定要刪除「{{ r.name }}」嗎？此操作無法還原。')"
           style="display:inline;">
