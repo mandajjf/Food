@@ -29,6 +29,8 @@ class Review(db.Model):
     rating = db.Column(db.Integer)
     comment = db.Column(db.Text)
     address = db.Column(db.String(300))
+    calories = db.Column(db.Float)
+    protein = db.Column(db.Float)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(
         db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow

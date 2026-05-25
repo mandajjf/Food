@@ -784,6 +784,67 @@ select.form-control {
 .r-menu-name  { color: var(--text); flex: 1; }
 .r-menu-price { color: var(--primary); font-weight: 500; white-space: nowrap; }
 
+/* ── Diary Day Groups ── */
+.day-group {
+  margin-bottom: 1.75rem;
+}
+
+.day-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  background: var(--cream-dark, #f5ede0);
+  border-left: 4px solid var(--primary);
+  border-radius: 0 0.5rem 0.5rem 0;
+  margin-bottom: 0.75rem;
+}
+
+.day-header-left {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.day-title {
+  font-weight: 700;
+  font-size: 0.95rem;
+  color: var(--text);
+}
+
+.day-count {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  background: white;
+  padding: 0.1rem 0.5rem;
+  border-radius: 999px;
+  border: 1px solid var(--border-light);
+}
+
+.day-totals {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.day-total-item {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--primary);
+  background: white;
+  padding: 0.15rem 0.6rem;
+  border-radius: 999px;
+  border: 1px solid var(--primary-light, #f4a86a);
+}
+
+.day-reviews {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
 /* ── Responsive ── */
 @media (max-width: 640px) {
   .hero-title { font-size: 1.5rem; }

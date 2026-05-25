@@ -210,15 +210,16 @@ def new_review():
         visit_date_str = request.form.get("visit_date", "").strip()
         meal_type = request.form.get("meal_type", "").strip()
         category = request.form.get("category", "").strip()
-        price_str = request.form.get("price", "").strip()
-        rating_str = request.form.get("rating", "").strip()
+        price_str    = request.form.get("price",    "").strip()
+        rating_str   = request.form.get("rating",   "").strip()
+        calories_str = request.form.get("calories", "").strip()
+        protein_str  = request.form.get("protein",  "").strip()
         comment = request.form.get("comment", "").strip()
         address = request.form.get("address", "").strip()
 
         errors = []
         visit_date = None
-        price = None
-        rating = None
+        price = rating = calories = protein = None
 
         if not restaurant_name:
             errors.append("餐廳名稱為必填。")
@@ -247,6 +248,22 @@ def new_review():
             except ValueError:
                 errors.append("評分必須為整數。")
 
+        if calories_str:
+            try:
+                calories = float(calories_str)
+                if calories < 0:
+                    errors.append("熱量不可為負數。")
+            except ValueError:
+                errors.append("熱量必須為數字。")
+
+        if protein_str:
+            try:
+                protein = float(protein_str)
+                if protein < 0:
+                    errors.append("蛋白質不可為負數。")
+            except ValueError:
+                errors.append("蛋白質必須為數字。")
+
         if errors:
             for msg in errors:
                 flash(msg, "danger")
@@ -267,6 +284,8 @@ def new_review():
             rating=rating,
             comment=comment or None,
             address=address or None,
+            calories=calories,
+            protein=protein,
         )
         db.session.add(review)
         db.session.commit()
@@ -311,9 +330,27 @@ def diary():
         Review.visit_date.desc(), Review.created_at.desc()
     ).all()
 
+    # 依日期分組，計算每日總計
+    from collections import OrderedDict
+    grouped = OrderedDict()
+    for r in reviews:
+        grouped.setdefault(r.visit_date, []).append(r)
+
+    grouped_days = []
+    for d, day_reviews in grouped.items():
+        total_cal = sum(r.calories for r in day_reviews if r.calories)
+        total_pro = sum(r.protein  for r in day_reviews if r.protein)
+        grouped_days.append({
+            "date":           d,
+            "reviews":        day_reviews,
+            "total_calories": round(total_cal) if total_cal else None,
+            "total_protein":  round(total_pro, 1) if total_pro else None,
+        })
+
     return render_template(
         "diary.html",
-        reviews=reviews,
+        grouped_days=grouped_days,
+        total_reviews=len(reviews),
         keyword=keyword,
         filter_category=filter_category,
         filter_meal_type=filter_meal_type,
@@ -338,15 +375,16 @@ def edit_review(id):
         visit_date_str = request.form.get("visit_date", "").strip()
         meal_type = request.form.get("meal_type", "").strip()
         category = request.form.get("category", "").strip()
-        price_str = request.form.get("price", "").strip()
-        rating_str = request.form.get("rating", "").strip()
+        price_str    = request.form.get("price",    "").strip()
+        rating_str   = request.form.get("rating",   "").strip()
+        calories_str = request.form.get("calories", "").strip()
+        protein_str  = request.form.get("protein",  "").strip()
         comment = request.form.get("comment", "").strip()
         address = request.form.get("address", "").strip()
 
         errors = []
         visit_date = None
-        price = None
-        rating = None
+        price = rating = calories = protein = None
 
         if not restaurant_name:
             errors.append("餐廳名稱為必填。")
@@ -375,6 +413,22 @@ def edit_review(id):
             except ValueError:
                 errors.append("評分必須為整數。")
 
+        if calories_str:
+            try:
+                calories = float(calories_str)
+                if calories < 0:
+                    errors.append("熱量不可為負數。")
+            except ValueError:
+                errors.append("熱量必須為數字。")
+
+        if protein_str:
+            try:
+                protein = float(protein_str)
+                if protein < 0:
+                    errors.append("蛋白質不可為負數。")
+            except ValueError:
+                errors.append("蛋白質必須為數字。")
+
         if errors:
             for msg in errors:
                 flash(msg, "danger")
@@ -393,6 +447,8 @@ def edit_review(id):
         review.rating = rating
         review.comment = comment or None
         review.address = address or None
+        review.calories = calories
+        review.protein = protein
         review.updated_at = datetime.utcnow()
 
         db.session.commit()
@@ -467,22 +523,31 @@ def restaurants():
 def api_menu():
     name = request.args.get("restaurant", "").strip()
     if not name:
-        return jsonify([])
+        return jsonify({"address": None, "items": []})
     restaurant = Restaurant.query.filter_by(name=name).first()
     if not restaurant:
-        return jsonify([])
+        return jsonify({"address": None, "items": []})
     items = (
         MenuItem.query.filter_by(restaurant_id=restaurant.id)
-        .order_by(MenuItem.price)
+        .order_by(MenuItem.item_name)
         .all()
     )
-    return jsonify([
-        {
-            "item_name": item.item_name,
-            "price": int(item.price) if item.price and item.price == int(item.price) else item.price,
-        }
-        for item in items
-    ])
+    def fmt_price(p):
+        if p is None:
+            return None
+        return int(p) if p == int(p) else p
+    return jsonify({
+        "address": restaurant.address,
+        "items": [
+            {
+                "item_name": item.item_name,
+                "price": fmt_price(item.price),
+                "calories": round(item.calories) if item.calories else None,
+                "protein": round(item.protein, 1) if item.protein else None,
+            }
+            for item in items
+        ],
+    })
 
 
 # ---------------------------------------------------------------------------

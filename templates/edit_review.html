@@ -10,30 +10,20 @@
 
     <div class="form-group">
       <label for="restaurant_name">餐廳名稱 <span class="required">*</span></label>
-      <input
-        type="text"
-        id="restaurant_name"
-        name="restaurant_name"
-        class="form-control"
-        value="{{ review.restaurant_name }}"
-        list="restaurant-list"
-        autocomplete="off"
-        required
-      >
+      <input type="text" id="restaurant_name" name="restaurant_name" class="form-control"
+        value="{{ review.restaurant_name }}" list="restaurant-list" autocomplete="off" required>
       {% if restaurant_names %}
         <datalist id="restaurant-list">
-          {% for name in restaurant_names %}
-            <option value="{{ name }}">
-          {% endfor %}
+          {% for name in restaurant_names %}<option value="{{ name }}">{% endfor %}
         </datalist>
       {% else %}
         <datalist id="restaurant-list"></datalist>
       {% endif %}
     </div>
 
-    <!-- 選擇菜色（選到餐廳後才顯示） -->
+    <!-- 選擇菜色 -->
     <div id="menu-container" class="form-group" style="display:none;">
-      <label for="menu_select">選擇菜色 <span class="form-hint" style="font-weight:400;">（選填，自動帶入售價）</span></label>
+      <label for="menu_select">選擇菜色 <span class="form-hint" style="font-weight:400;">（選填，自動帶入售價與熱量）</span></label>
       <select id="menu_select" class="form-control">
         <option value="">-- 選擇菜色 --</option>
       </select>
@@ -42,16 +32,9 @@
     <div class="form-grid-2">
       <div class="form-group">
         <label for="visit_date">用餐日期 <span class="required">*</span></label>
-        <input
-          type="date"
-          id="visit_date"
-          name="visit_date"
-          class="form-control"
-          value="{{ review.visit_date.strftime('%Y-%m-%d') if review.visit_date else '' }}"
-          required
-        >
+        <input type="date" id="visit_date" name="visit_date" class="form-control"
+          value="{{ review.visit_date.strftime('%Y-%m-%d') if review.visit_date else '' }}" required>
       </div>
-
       <div class="form-group">
         <label for="meal_type">餐別</label>
         <select id="meal_type" name="meal_type" class="form-control">
@@ -73,7 +56,6 @@
           {% endfor %}
         </select>
       </div>
-
       <div class="form-group">
         <label for="rating">評分（1–5 顆星）</label>
         <select id="rating" name="rating" class="form-control">
@@ -89,37 +71,35 @@
 
     <div class="form-group">
       <label for="price">消費金額（NT$）</label>
-      <input
-        type="number"
-        id="price"
-        name="price"
-        class="form-control"
-        placeholder="可留空"
-        min="0"
-        step="1"
-        value="{{ review.price | int if review.price is not none else '' }}"
-      >
+      <input type="number" id="price" name="price" class="form-control"
+        placeholder="可留空" min="0" step="1"
+        value="{{ review.price | int if review.price is not none else '' }}">
+    </div>
+
+    <div class="form-grid-2">
+      <div class="form-group">
+        <label for="calories">熱量（kcal）</label>
+        <input type="number" id="calories" name="calories" class="form-control"
+          placeholder="可留空" min="0" step="1"
+          value="{{ review.calories | int if review.calories is not none else '' }}">
+      </div>
+      <div class="form-group">
+        <label for="protein">蛋白質（g）</label>
+        <input type="number" id="protein" name="protein" class="form-control"
+          placeholder="可留空" min="0" step="0.1"
+          value="{{ review.protein if review.protein is not none else '' }}">
+      </div>
     </div>
 
     <div class="form-group">
       <label for="address">地址</label>
-      <input
-        type="text"
-        id="address"
-        name="address"
-        class="form-control"
-        value="{{ review.address or '' }}"
-      >
+      <input type="text" id="address" name="address" class="form-control"
+        value="{{ review.address or '' }}">
     </div>
 
     <div class="form-group">
       <label for="comment">心得評論</label>
-      <textarea
-        id="comment"
-        name="comment"
-        class="form-control"
-        rows="4"
-      >{{ review.comment or '' }}</textarea>
+      <textarea id="comment" name="comment" class="form-control" rows="4">{{ review.comment or '' }}</textarea>
     </div>
 
     <div class="form-actions">
@@ -132,25 +112,35 @@
 
 <script>
 (function () {
-  const input   = document.getElementById('restaurant_name');
-  const list    = document.getElementById('restaurant-list');
-  const menuBox = document.getElementById('menu-container');
-  const menuSel = document.getElementById('menu_select');
-  const price   = document.getElementById('price');
+  const input      = document.getElementById('restaurant_name');
+  const list       = document.getElementById('restaurant-list');
+  const menuBox    = document.getElementById('menu-container');
+  const menuSel    = document.getElementById('menu_select');
+  const priceInput = document.getElementById('price');
+  const calInput   = document.getElementById('calories');
+  const proInput   = document.getElementById('protein');
+  const addrInput  = document.getElementById('address');
 
   function loadMenu(name) {
     if (!name) { menuBox.style.display = 'none'; return; }
     fetch('/api/menu?restaurant=' + encodeURIComponent(name))
-      .then(r => r.ok ? r.json() : [])
-      .then(items => {
-        if (!items.length) { menuBox.style.display = 'none'; return; }
+      .then(r => r.ok ? r.json() : {address: null, items: []})
+      .then(data => {
+        if (data.address && addrInput && !addrInput.value) {
+          addrInput.value = data.address;
+        }
+        if (!data.items || !data.items.length) {
+          menuBox.style.display = 'none'; return;
+        }
         menuSel.innerHTML = '<option value="">-- 選擇菜色 --</option>';
-        items.forEach(item => {
+        data.items.forEach(item => {
           const opt = document.createElement('option');
           opt.value = item.price != null ? item.price : '';
           opt.textContent = item.price != null
             ? item.item_name + '（NT$' + item.price + '）'
             : item.item_name;
+          if (item.calories != null) opt.dataset.calories = item.calories;
+          if (item.protein  != null) opt.dataset.protein  = item.protein;
           menuSel.appendChild(opt);
         });
         menuBox.style.display = 'block';
@@ -166,8 +156,12 @@
 
   input.addEventListener('change', checkExact);
   input.addEventListener('input',  checkExact);
+
   menuSel.addEventListener('change', function () {
-    if (this.value !== '') price.value = this.value;
+    const opt = this.options[this.selectedIndex];
+    if (opt.value !== '')     priceInput.value = opt.value;
+    if (opt.dataset.calories) calInput.value   = Math.round(opt.dataset.calories);
+    if (opt.dataset.protein)  proInput.value   = parseFloat(opt.dataset.protein).toFixed(1);
   });
 })();
 </script>
