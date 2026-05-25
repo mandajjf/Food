@@ -52,6 +52,20 @@ db.init_app(app)
 # Auto-create tables on startup (safe: skips existing tables)
 with app.app_context():
     db.create_all()
+    # Add new columns if they don't exist yet (idempotent migration)
+    def _add_column_if_missing(conn, table, column, col_type):
+        try:
+            conn.execute(db.text(f"ALTER TABLE {table} ADD COLUMN {column} {col_type}"))
+            conn.commit()
+        except Exception as e:
+            msg = str(e).lower()
+            if "duplicate column" not in msg and "already exists" not in msg:
+                raise
+            conn.rollback()
+
+    with db.engine.connect() as _conn:
+        _add_column_if_missing(_conn, "reviews", "calories", "FLOAT")
+        _add_column_if_missing(_conn, "reviews", "protein",  "FLOAT")
 
 
 # ---------------------------------------------------------------------------
