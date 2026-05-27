@@ -19,7 +19,7 @@ from flask import (
 load_dotenv()
 
 from database import db
-from models import MenuItem, Restaurant, Review, User
+from models import MenuItem, Restaurant, Review, User, UserDiet
 
 # ---------------------------------------------------------------------------
 # App factory
@@ -194,6 +194,8 @@ def login():
         ):
             session["user_id"] = user.id
             session["username"] = user.username
+            diet_entry = UserDiet.query.filter_by(username=user.username).first()
+            session["diet_mode"] = bool(diet_entry and diet_entry.diet_mode)
             flash(f"歡迎回來，{user.username}！", "success")
             return redirect(url_for("dashboard"))
 
@@ -544,6 +546,162 @@ def food_map():
     )
     return render_template("food_map.html", reviews=reviews)
 
+
+# ── 飲控設定 ──────────────────────────────────────────────────────────────
+
+ACTIVITY_OPTIONS = [
+    (1.2, "無活動：久坐"),
+    (1.375, "輕量活動：每週 1–3 天"),
+    (1.55, "中度活動量：每週 3–5 天"),
+    (1.725, "高度活動量：每週 6–7 天"),
+    (1.9, "非常高度活動量：高強度勞力型"),
+]
+
+
+def calculate_diet_recommendation(gender, height, weight, age, activity_coeff, target_type):
+    if gender not in ("男", "女"):
+        return None
+
+    if height is None or weight is None or age is None:
+        return None
+
+    if gender == "男":
+        bmr = 13.7 * weight + 5.0 * height - 6.8 * age + 66
+    else:
+        bmr = 9.6 * weight + 1.8 * height - 4.7 * age + 655
+
+    tdee = bmr * activity_coeff
+
+    protein_factor = {
+        "增肌": 1.6,
+        "減脂": 2.0,
+        "維持體重": 1.2,
+    }.get(target_type, 1.2)
+    protein_intake = weight * protein_factor
+
+    return {
+        "bmr": round(bmr, 1),
+        "tdee": round(tdee, 1),
+        "protein_intake": round(protein_intake, 1),
+        "activity_coeff": activity_coeff,
+        "target_type": target_type,
+    }
+
+
+@app.route("/diet_setting", methods=["GET", "POST"])
+@login_required
+def diet_setting():
+    diet_entry = UserDiet.query.filter_by(username=session["username"]).first()
+    form_data = {
+        "diet_mode": bool(diet_entry and diet_entry.diet_mode) if diet_entry else False,
+        "gender": diet_entry.gender if diet_entry and diet_entry.gender else "",
+        "height": diet_entry.height if diet_entry and diet_entry.height is not None else "",
+        "weight": diet_entry.weight if diet_entry and diet_entry.weight is not None else "",
+        "age": diet_entry.age if diet_entry and diet_entry.age is not None else "",
+        "activity_coeff": diet_entry.acticity_coeff if diet_entry and diet_entry.acticity_coeff is not None else "",
+        "target_type": diet_entry.target_type if diet_entry and diet_entry.target_type else "維持體重",
+    }
+    recommendation = None
+
+    if request.method == "POST":
+        diet_mode = request.form.get("diet_mode") == "on"
+        gender = request.form.get("gender", "").strip()
+        height_str = request.form.get("height", "").strip()
+        weight_str = request.form.get("weight", "").strip()
+        age_str = request.form.get("age", "").strip()
+        activity_coeff_str = request.form.get("activity_coeff", "") or request.form.get("acticity_coeff", "").strip()
+        target_type = request.form.get("target_type", "維持體重").strip()
+
+        form_data.update({
+            "diet_mode": diet_mode,
+            "gender": gender,
+            "height": height_str,
+            "weight": weight_str,
+            "age": age_str,
+            "activity_coeff": activity_coeff_str,
+            "target_type": target_type,
+        })
+
+        if diet_mode:
+            errors = []
+            try:
+                height = float(height_str)
+                if not 100 <= height <= 200:
+                    errors.append("身高必須介於 100 到 200 公分。")
+            except ValueError:
+                errors.append("身高必須為浮點數。")
+
+            try:
+                weight = float(weight_str)
+                if weight <= 10:
+                    errors.append("體重必須大於 10 公斤。")
+            except ValueError:
+                errors.append("體重必須為浮點數。")
+
+            try:
+                age = int(age_str)
+                if age <= 0:
+                    errors.append("年齡必須為正整數。")
+            except ValueError:
+                errors.append("年齡必須為正整數。")
+
+            if gender not in ("男", "女"):
+                errors.append("請選擇性別。")
+
+            try:
+                activity_coeff = float(activity_coeff_str)
+            except ValueError:
+                activity_coeff = None
+                errors.append("請選擇活動係數。")
+
+            if target_type not in ("維持體重", "增肌", "減脂"):
+                errors.append("請選擇飲控目的。")
+
+            if errors:
+                for msg in errors:
+                    flash(msg, "danger")
+            else:
+                if diet_entry is None:
+                    diet_entry = UserDiet(username=session["username"])
+                    db.session.add(diet_entry)
+
+                diet_entry.diet_mode = True
+                diet_entry.gender = gender
+                diet_entry.height = height
+                diet_entry.weight = weight
+                diet_entry.age = age
+                diet_entry.acticity_coeff = activity_coeff
+                diet_entry.target_type = target_type
+                recommendation = calculate_diet_recommendation(
+                    gender=gender,
+                    height=height,
+                    weight=weight,
+                    age=age,
+                    activity_coeff=activity_coeff,
+                    target_type=target_type,
+                )
+                if recommendation is not None:
+                    diet_entry.TDEE = recommendation["tdee"]
+                    diet_entry.protein_intake = recommendation["protein_intake"]
+                db.session.commit()
+                session["diet_mode"] = True
+                flash("飲控模式已開啟並儲存。", "success")
+        else:
+            if diet_entry is None:
+                diet_entry = UserDiet(username=session["username"])
+                db.session.add(diet_entry)
+            diet_entry.diet_mode = False
+            db.session.commit()
+            session["diet_mode"] = False
+            flash("飲控模式已關閉，不會更動原有數值。", "info")
+
+    return render_template(
+        "diet_setting.html",
+        diet_entry=diet_entry,
+        form_data=form_data,
+        recommendation=recommendation,
+        activity_options=ACTIVITY_OPTIONS,
+    )
 
 # ---------------------------------------------------------------------------
 
