@@ -29,6 +29,7 @@ app = Flask(__name__)
 
 # Secret key
 app.secret_key = os.environ.get("SECRET_KEY", "dev-secret-key-CHANGE-IN-PRODUCTION")
+api_key = os.environ.get("MY_API_KEY")
 
 # Database configuration
 _db_url = os.environ.get("DATABASE_URL", "")
@@ -226,7 +227,7 @@ def dashboard():
 # ── 新增紀錄 ──────────────────────────────────────────────────────────────
 
 MEAL_TYPES = ["早餐", "午餐", "晚餐", "點心"]
-CATEGORIES = ["台式", "日式", "韓式", "美式", "義式", "甜點", "飲料", "其他"]
+CATEGORIES = ["台式", "日式", "韓式", "西餐", "甜點", "飲料", "其他"]
 
 
 @app.route("/new_review", methods=["GET", "POST"])
@@ -532,9 +533,12 @@ def delete_review(id):
 
 # ── 美食地圖 ──────────────────────────────────────────────────────────────
 
-@app.route("/food_map")
+@app.route("/food_map2")
 @login_required
-def food_map():
+def food_map2():
+    if api_key:
+        return render_template("food_map2.html", api_key=api_key)
+    
     reviews = (
         Review.query.filter(
             Review.user_id == session["user_id"],
