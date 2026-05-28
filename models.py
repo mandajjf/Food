@@ -16,31 +16,35 @@ class User(db.Model):
     )
 
 class UserDiet(db.Model):
+    """使用者每日飲食控制設定。
+
+    活動係數 (activity_coeff)：
+        1.200 — 無活動：久坐
+        1.375 — 輕量活動：每週 1–3 天
+        1.550 — 中度活動量：每週 3–5 天
+        1.725 — 高度活動量：每週 6–7 天
+        1.900 — 非常高度活動量：勞力型工作
+
+    BMR 公式：
+        男：13.7 × 體重(kg) + 5.0 × 身高(cm) − 6.8 × 年齡 + 66
+        女：9.6 × 體重(kg) + 1.8 × 身高(cm) − 4.7 × 年齡 + 655
+
+    蛋白質建議：
+        增肌：1.6 g/kg、減脂：2.0 g/kg、維持體重：1.2 g/kg
+    """
+
     __tablename__ = "user_diets"
 
     username = db.Column(db.String(80), db.ForeignKey("users.username"), primary_key=True)
-    diet_mode = db.Column(db.Boolean, default=False)  # True for diet mode, False for normal mode
-    height = db.Column(db.Float)  # 身高，單位為公分
-    weight = db.Column(db.Float)  # 體重，單位為公斤
+    diet_mode = db.Column(db.Boolean, default=False)
+    height = db.Column(db.Float)         # 身高，單位公分
+    weight = db.Column(db.Float)         # 體重，單位公斤
     gender = db.Column(db.String(10))
-    age = db.Column(db.Integer)  # 年齡，單位為歲
-    acticity_coeff = db.Column(db.Float)  # 活動係數
-    target_type = db.Column(db.String(20),default="維持體重")  # "減重", "增肌", "維持體重"
-    TDEE = db.Column(db.Float)  # 總日常能量消耗
-    protein_intake = db.Column(db.Float)  # 蛋白質攝取量，單位為克
-'''
-activity_coeff
-無活動：久坐，TDEE = 1.2x BMR
-輕量活動：每周運動1-3天(輕鬆)，TDEE = 1.375 x BMR
-中度活動量：站走稍多、每周運動3-5天（中強度），TDEE = 1.55 x BMR
-高度活動量：站走為主、每周運動6-7天（高強度），TDEE = 1.725 x BMR
-非常高度活動量：勞力型的工作、幾乎整天都做高強度的運動，TDEE = 1.9 x BMR)、
-
-BMR(男)=(13.7×體重(公斤))+(5.0×身高(公分))-(6.8×年齡)+66
-BMR(女)=(9.6×體重(公斤))+(1.8×身高(公分))-(4.7×年齡)+655"
-
-增肌：1.6g/每公斤體重、減脂：2g/每公斤體重、維持體重：1.2g/每公斤體重計算並顯示建議蛋白質攝取量
-'''
+    age = db.Column(db.Integer)          # 年齡，單位歲
+    activity_coeff = db.Column(db.Float) # 活動係數
+    target_type = db.Column(db.String(20), default="維持體重")  # 增肌 / 減脂 / 維持體重
+    TDEE = db.Column(db.Float)           # 總日常能量消耗
+    protein_intake = db.Column(db.Float) # 建議蛋白質攝取量，單位克
 
 class Review(db.Model):
     __tablename__ = "reviews"

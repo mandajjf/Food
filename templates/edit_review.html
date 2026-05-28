@@ -21,12 +21,11 @@
       {% endif %}
     </div>
 
-    <!-- 選擇菜色 -->
+    <!-- 選擇菜色與數量 -->
     <div id="menu-container" class="form-group" style="display:none;">
-      <label for="menu_select">選擇菜色 <span class="form-hint" style="font-weight:400;">（選填，自動帶入售價與熱量）</span></label>
-      <select id="menu_select" class="form-control">
-        <option value="">-- 選擇菜色 --</option>
-      </select>
+      <label>選擇菜色與數量 <span class="form-hint" style="font-weight:400;">（每道菜選擇後會自動新增一組輸入欄位，最後一組可留空）</span></label>
+      <div id="dish-rows"></div>
+      <p class="form-hint" style="margin-top:0.25rem;">熱量與蛋白質會同步顯示所有已選菜色的數量總和。</p>
     </div>
 
     <div class="form-grid-2">
@@ -115,54 +114,156 @@
   const input      = document.getElementById('restaurant_name');
   const list       = document.getElementById('restaurant-list');
   const menuBox    = document.getElementById('menu-container');
-  const menuSel    = document.getElementById('menu_select');
+  const dishRows   = document.getElementById('dish-rows');
   const priceInput = document.getElementById('price');
   const calInput   = document.getElementById('calories');
   const proInput   = document.getElementById('protein');
   const addrInput  = document.getElementById('address');
 
+  let availableMenuItems = [];
+
+  function createOption(item) {
+    const opt = document.createElement('option');
+    opt.value = item.item_name || '';
+    opt.textContent = item.item_name + (item.price != null ? '（NT$' + item.price + '）' : '');
+    if (item.price != null)    opt.dataset.price    = item.price;
+    if (item.calories != null) opt.dataset.calories = item.calories;
+    if (item.protein != null)  opt.dataset.protein  = item.protein;
+    return opt;
+  }
+
+  function populateSelect(select) {
+    select.innerHTML = '<option value="">-- 選擇菜色 --</option>';
+    availableMenuItems.forEach(item => select.appendChild(createOption(item)));
+  }
+
+  function addDishRow(selected = '', qty = 1) {
+    const row = document.createElement('div');
+    row.className = 'dish-row';
+    row.style = 'display:flex; gap:0.75rem; align-items:flex-end; margin-bottom:0.75rem;';
+
+    const selectWrapper = document.createElement('div');
+    selectWrapper.style = 'flex:1;';
+    const select = document.createElement('select');
+    select.className = 'form-control dish-select';
+    select.name = 'dish_item';
+    select.style.width = '100%';
+    populateSelect(select);
+    select.value = selected;
+    select.addEventListener('change', handleDishRowChange);
+    selectWrapper.appendChild(select);
+
+    const qtyWrapper = document.createElement('div');
+    qtyWrapper.style = 'width:110px;';
+    const qtyInput = document.createElement('input');
+    qtyInput.type = 'number';
+    qtyInput.className = 'form-control dish-qty';
+    qtyInput.name = 'dish_qty';
+    qtyInput.min = '1';
+    qtyInput.step = '1';
+    qtyInput.value = qty > 0 ? qty : 1;
+    qtyInput.addEventListener('input', handleDishRowChange);
+    qtyWrapper.appendChild(qtyInput);
+
+    row.appendChild(selectWrapper);
+    row.appendChild(qtyWrapper);
+    dishRows.appendChild(row);
+  }
+
+  function clearDishRows() {
+    dishRows.innerHTML = '';
+  }
+
+  function normalizeDishRows() {
+    const rows = Array.from(dishRows.querySelectorAll('.dish-row'));
+    if (!rows.length) { addDishRow(); return; }
+
+    rows.slice(0, -1).forEach(row => {
+      const select = row.querySelector('.dish-select');
+      if (select && select.value === '') row.remove();
+    });
+
+    const lastRow = dishRows.querySelector('.dish-row:last-child');
+    if (lastRow) {
+      const select = lastRow.querySelector('.dish-select');
+      if (select && select.value !== '') addDishRow();
+    }
+  }
+
+  function computeTotals() {
+    let totalPrice = 0, totalCalories = 0, totalProtein = 0;
+
+    dishRows.querySelectorAll('.dish-row').forEach(row => {
+      const select = row.querySelector('.dish-select');
+      const qtyInput = row.querySelector('.dish-qty');
+      const qty = Math.max(1, parseInt(qtyInput.value, 10) || 0);
+
+      if (select && select.value && qty > 0) {
+        const opt = select.options[select.selectedIndex];
+        totalPrice    += (parseFloat(opt.dataset.price)    || 0) * qty;
+        totalCalories += (parseFloat(opt.dataset.calories) || 0) * qty;
+        totalProtein  += (parseFloat(opt.dataset.protein)  || 0) * qty;
+      }
+    });
+
+    priceInput.value = totalPrice    ? Math.round(totalPrice)        : '';
+    calInput.value   = totalCalories ? Math.round(totalCalories)     : '';
+    proInput.value   = totalProtein  ? totalProtein.toFixed(1)       : '';
+  }
+
+  function handleDishRowChange(event) {
+    const target = event.target;
+    if (target.classList.contains('dish-qty')) {
+      const cleaned = target.value.replace(/\D/g, '');
+      target.value = cleaned ? Math.max(1, Number(cleaned)) : '';
+    }
+    normalizeDishRows();
+    computeTotals();
+  }
+
   function loadMenu(name) {
-    if (!name) { menuBox.style.display = 'none'; return; }
+    if (!name) {
+      menuBox.style.display = 'none';
+      availableMenuItems = [];
+      clearDishRows();
+      return;
+    }
     fetch('/api/menu?restaurant=' + encodeURIComponent(name))
       .then(r => r.ok ? r.json() : {address: null, items: []})
       .then(data => {
         if (data.address && addrInput && !addrInput.value) {
           addrInput.value = data.address;
         }
-        if (!data.items || !data.items.length) {
-          menuBox.style.display = 'none'; return;
+        availableMenuItems = Array.isArray(data.items) ? data.items : [];
+        if (!availableMenuItems.length) {
+          menuBox.style.display = 'none';
+          clearDishRows();
+          return;
         }
-        menuSel.innerHTML = '<option value="">-- 選擇菜色 --</option>';
-        data.items.forEach(item => {
-          const opt = document.createElement('option');
-          opt.value = item.price != null ? item.price : '';
-          opt.textContent = item.price != null
-            ? item.item_name + '（NT$' + item.price + '）'
-            : item.item_name;
-          if (item.calories != null) opt.dataset.calories = item.calories;
-          if (item.protein  != null) opt.dataset.protein  = item.protein;
-          menuSel.appendChild(opt);
-        });
+        clearDishRows();
+        addDishRow();
         menuBox.style.display = 'block';
+        computeTotals();
       })
-      .catch(() => { menuBox.style.display = 'none'; });
+      .catch(() => {
+        menuBox.style.display = 'none';
+        availableMenuItems = [];
+        clearDishRows();
+      });
   }
 
   function checkExact() {
     const opts = Array.from(list.options).map(o => o.value);
     if (opts.includes(input.value)) loadMenu(input.value);
-    else menuBox.style.display = 'none';
+    else {
+      menuBox.style.display = 'none';
+      availableMenuItems = [];
+      clearDishRows();
+    }
   }
 
   input.addEventListener('change', checkExact);
   input.addEventListener('input',  checkExact);
-
-  menuSel.addEventListener('change', function () {
-    const opt = this.options[this.selectedIndex];
-    if (opt.value !== '')     priceInput.value = opt.value;
-    if (opt.dataset.calories) calInput.value   = Math.round(opt.dataset.calories);
-    if (opt.dataset.protein)  proInput.value   = parseFloat(opt.dataset.protein).toFixed(1);
-  });
 })();
 </script>
 {% endblock %}
