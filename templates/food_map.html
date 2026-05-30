@@ -186,7 +186,7 @@
   <div id="constrain">
     <h4>餐廳篩選</h4>
     
-    <!-- 餐別篩選 -->
+    <!-- 餐別篩選 
     <div class="filter-section">
       <h5>餐別</h5>
       <div class="checkbox-group" id="mealTypesGroup">
@@ -195,7 +195,7 @@
         <label><input type="checkbox" name="meal_type" value="晚餐"> 晚餐</label>
         <label><input type="checkbox" name="meal_type" value="點心"> 點心</label>
       </div>
-    </div>
+    </div>-->
     
     <!-- 料理類別篩選 -->
     <div class="filter-section">
@@ -293,45 +293,22 @@
   };
   
   function initMap() {
-    // 地圖樣式配置
-    // 根據 Google Maps API 官方文件，支援的 poi 子類型有：
-    // poi.attraction, poi.business, poi.government, poi.medical, poi.park, poi.place_of_worship, poi.school, poi.sports_complex
-    // 餐廳、酒吧、咖啡廳不在 API 的 featureType 中，因此隱藏所有 POI，改由後端 API 搜尋結果自訂顯示
-    const mapStyles = [
-      {
-        // 隱藏所有 POI 標籤（餐廳、商店、景點等Google預設標籤）
-        featureType: "poi",
-        elementType: "labels",
-        stylers: [{ visibility: "off" }]
-      },
-      {
-        // 隱藏 POI 商家幾何圖形，避免預設圖示出現
-        featureType: "poi.business",
-        elementType: "geometry",
-        stylers: [{ visibility: "off" }]
-      },
-      {
-        featureType: "poi.restaurant",
-        elementType: "geometry",
-        stylers: [{ visibility: "on" }]
-      },
-      {
-        featureType: "poi.foodAndDrink.restaurant",
-        elementType: "labels",
-        stylers: [{ visibility: "on" }]
-      }
-    ];
-
     map = new google.maps.Map(document.getElementById("map"), {
       center: { lat: 25.017554367254085, lng: 121.53976252434965 },
       zoom: 15,
       zoomControl: false,
       mapTypeControl: false,
       scaleControl: false,
-      streetViewControl: false,
+      streetViewControl: true,
       rotateControl: false,
       fullscreenControl: false,
-      styles: mapStyles
+      styles: [
+        {
+          featureType: "poi",
+          elementType: "labels",
+          stylers: [{ visibility: "off" }]
+        }
+      ]
     });
     
     navigator.geolocation.getCurrentPosition(function(position) {
@@ -378,10 +355,11 @@
   }
   
   function getSelectedFilters() {
+    /*
     const mealTypes = Array.from(
       document.querySelectorAll('#mealTypesGroup input[type="checkbox"]:checked')
     ).map(el => el.value);
-    
+    */
     const categories = Array.from(
       document.querySelectorAll('#categoriesGroup input[type="checkbox"]:checked')
     ).map(el => el.value);
@@ -399,7 +377,7 @@
     const distanceLimit = distanceLimitStr ? parseFloat(distanceLimitStr) : null;
     
     return {
-      meal_types: mealTypes,
+      //meal_types: mealTypes,
       categories: categories,
       price_min: priceMinLevel,
       price_max: priceMaxLevel,
@@ -410,7 +388,7 @@
   }
   
   function validateFilters(filters) {
-    if (filters.meal_types.length > 0) return true;
+    //if (filters.meal_types.length > 0) return true;
     if (filters.categories.length > 0) return true;
     if (filters.price_min !== 0 || filters.price_max !== null) return true;
     if (filters.distance_limit) return true;
@@ -592,7 +570,7 @@
 </script>
 
 <script async
-  src="https://maps.googleapis.com/maps/api/js?key={{ api_key }}&libraries=places,geocoding&callback=initMap"
+  src="https://maps.googleapis.com/maps/api/js?key={{ api_key }}&libraries=places,geocoding&callback=initMap&region=TW&language=zh-TW"
 ></script>
 
 {% endblock %}

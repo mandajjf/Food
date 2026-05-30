@@ -536,7 +536,7 @@ def delete_review(id):
 
 @app.route("/food_map")
 @login_required
-"""
+'''
 def food_map():
     if api_key:
         return render_template("food_map.html", api_key=api_key)
@@ -551,7 +551,7 @@ def food_map():
             .all()
         )
         return render_template("food_map2.html", reviews=reviews)
-"""
+'''
 
 def food_map():
     return render_template("food_map.html", api_key=api_key)
@@ -597,10 +597,11 @@ def api_restaurants():
     if session.get("diet_mode"):
         query = query.filter_by(is_healthy=True)
     
+    '''
     # 根據餐別篩選
     if meal_types:
         # 查找該使用者對這些餐別有評論的餐廳
-        restaurant_ids_with_meal_types = db.session.query(Review.restaurant_id).distinct().filter(
+        query = query.filter_by(Review.restaurant_id).distinct().filter(
             Review.user_id == session["user_id"],
             Review.meal_type.in_(meal_types)
         ).all()
@@ -610,32 +611,34 @@ def api_restaurants():
         else:
             # 如果沒有符合的餐廳，直接返回空
             return jsonify({"restaurants": []})
-    
+    '''
+
     # 根據料理類別篩選
     if categories:
         # 查找該使用者對這些類別有評論的餐廳
-        restaurant_ids_with_categories = db.session.query(Review.restaurant_id).distinct().filter(
-            Review.user_id == session["user_id"],
-            Review.category.in_(categories)
-        ).all()
+        query = query.filter(
+            Restaurant.cuisine_style.in_(categories)
+        )
+        '''
         restaurant_ids_with_categories = [r[0] for r in restaurant_ids_with_categories]
         if restaurant_ids_with_categories:
             query = query.filter(Restaurant.id.in_(restaurant_ids_with_categories))
         else:
             # 如果沒有符合的餐廳，直接返回空
             return jsonify({"restaurants": []})
-    
+        '''
+
     # 根據價位篩選
     if price_min is not None or price_max is not None:
         if price_min is not None and price_max is not None:
-            query = query.filter(Restaurant.price_level.between(int(price_min), int(price_max)))
+            query = query.filter(Restaurant.price_level.between(float(price_min), float(price_max)))
         elif price_min is not None:
-            query = query.filter(Restaurant.price_level >= int(price_min))
+            query = query.filter(Restaurant.price_level >= float(price_min))
         elif price_max is not None:
-            query = query.filter(Restaurant.price_level <= int(price_max))
+            query = query.filter(Restaurant.price_level <= float(price_max))
     
-    restaurants = query.all()
-    
+    'restaurants = query.all()'
+    '''
     # 根據距離篩選
     filtered_restaurants = []
     if distance_limit and user_lat is not None and user_lon is not None:
@@ -648,10 +651,13 @@ def api_restaurants():
                 filtered_restaurants.append(restaurant)
     else:
         filtered_restaurants = restaurants
-    
+    '''
+    restaurants = query(Restaurant.name).all()
+    restaurant_names = [row[0] for row in restaurants]
+    '''
     # 獲取每個餐廳的 reviews
     result = []
-    for restaurant in filtered_restaurants:
+    for restaurant in restaurants:
         reviews = Review.query.filter_by(restaurant_id=restaurant.id, user_id=session["user_id"]).all()
         result.append({
             "id": restaurant.id,
@@ -677,7 +683,8 @@ def api_restaurants():
         })
     
     return jsonify({"restaurants": result})
-
+    '''
+    return jsonify({"restaurants": restaurants})
 
 @app.route("/api/diet_today", methods=["GET"])
 @login_required
