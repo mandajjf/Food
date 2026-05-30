@@ -4,6 +4,7 @@ from datetime import date, datetime
 import math
 
 import bcrypt
+import requests
 from dotenv import load_dotenv
 from flask import (
     Flask,
@@ -536,22 +537,6 @@ def delete_review(id):
 
 @app.route("/food_map")
 @login_required
-'''
-def food_map():
-    if api_key:
-        return render_template("food_map.html", api_key=api_key)
-    else:
-        reviews = (
-            Review.query.filter(
-                Review.user_id == session["user_id"],
-                Review.address.isnot(None),
-                Review.address != "",
-            )
-            .order_by(Review.visit_date.desc())
-            .all()
-        )
-        return render_template("food_map2.html", reviews=reviews)
-'''
 
 def food_map():
     return render_template("food_map.html", api_key=api_key)
@@ -571,12 +556,12 @@ def haversine_distance(lat1, lon1, lat2, lon2):
 @app.route("/api/restaurants", methods=["POST"])
 @login_required
 def api_restaurants():
-    """根據篩選條件返回符合的餐廳列表"""
+    """根據篩選條件返回符合的餐廳列表，並回傳可供前端使用的經緯度與評論資料。"""
     try:
         data = request.get_json()
     except Exception:
         return jsonify({"error": "無效的 JSON"}), 400
-    
+
     # 提取篩選條件
     meal_types = data.get("meal_types", []) or []
     categories = data.get("categories", []) or []
@@ -585,48 +570,23 @@ def api_restaurants():
     distance_limit = data.get("distance_limit")
     user_lat = data.get("user_lat")
     user_lon = data.get("user_lon")
-    
+
     # 驗證至少有一個篩選條件不為空
     if not any([meal_types, categories, price_min is not None, price_max is not None, distance_limit]):
         return jsonify({"error": "至少需要一個篩選條件"}), 400
-    
+
     # 開始查詢餐廳
     query = Restaurant.query
-    
+
     # 如果用戶開啟飲控模式，只顯示健康餐廳
     if session.get("diet_mode"):
         query = query.filter_by(is_healthy=True)
-    
-    '''
-    # 根據餐別篩選
-    if meal_types:
-        # 查找該使用者對這些餐別有評論的餐廳
-        query = query.filter_by(Review.restaurant_id).distinct().filter(
-            Review.user_id == session["user_id"],
-            Review.meal_type.in_(meal_types)
-        ).all()
-        restaurant_ids_with_meal_types = [r[0] for r in restaurant_ids_with_meal_types]
-        if restaurant_ids_with_meal_types:
-            query = query.filter(Restaurant.id.in_(restaurant_ids_with_meal_types))
-        else:
-            # 如果沒有符合的餐廳，直接返回空
-            return jsonify({"restaurants": []})
-    '''
 
-    # 根據料理類別篩選
+    # 根據料理類別篩選（在餐廳資料上匹配 cuisine_style 或 category）
     if categories:
-        # 查找該使用者對這些類別有評論的餐廳
         query = query.filter(
-            Restaurant.cuisine_style.in_(categories)
+            (Restaurant.cuisine_style.in_(categories)) | (Restaurant.category.in_(categories))
         )
-        '''
-        restaurant_ids_with_categories = [r[0] for r in restaurant_ids_with_categories]
-        if restaurant_ids_with_categories:
-            query = query.filter(Restaurant.id.in_(restaurant_ids_with_categories))
-        else:
-            # 如果沒有符合的餐廳，直接返回空
-            return jsonify({"restaurants": []})
-        '''
 
     # 根據價位篩選
     if price_min is not None or price_max is not None:
@@ -636,29 +596,45 @@ def api_restaurants():
             query = query.filter(Restaurant.price_level >= float(price_min))
         elif price_max is not None:
             query = query.filter(Restaurant.price_level <= float(price_max))
-    
-    'restaurants = query.all()'
-    '''
-    # 根據距離篩選
+
+    restaurants = query.all()
+
+    # 根據距離篩選（伺服器端地理編碼需要 GOOGLE_MAPS_API_KEY）
     filtered_restaurants = []
     if distance_limit and user_lat is not None and user_lon is not None:
+        if not api_key:
+            return jsonify({"error": "Server missing GOOGLE_MAPS_API_KEY for distance filtering"}), 500
+
         for restaurant in restaurants:
-            if restaurant.address:
-                # 這裡需要地理編碼，暫時所有餐廳都納入
-                # 實際應該使用 Google Maps API 或其他地理編碼服務進行距離計算
-                filtered_restaurants.append(restaurant)
-            else:
-                filtered_restaurants.append(restaurant)
+            if not restaurant.address:
+                # 無地址的餐廳無法地理編碼，視為不納入距離計算，仍可視為符合條件
+                continue
+            try:
+                params = {"address": restaurant.address, "key": api_key}
+                geores = requests.get("https://maps.googleapis.com/maps/api/geocode/json", params=params, timeout=5)
+                geodata = geores.json()
+                if geodata.get("status") == "OK" and geodata.get("results"):
+                    loc = geodata["results"][0]["geometry"]["location"]
+                    lat = float(loc.get("lat"))
+                    lng = float(loc.get("lng"))
+                    dist_km = haversine_distance(user_lat, user_lon, lat, lng)
+                    if dist_km <= float(distance_limit):
+                        restaurant._geo_lat = lat
+                        restaurant._geo_lng = lng
+                        filtered_restaurants.append(restaurant)
+                else:
+                    continue
+            except Exception:
+                continue
     else:
         filtered_restaurants = restaurants
-    '''
-    restaurants = query(Restaurant.name).all()
-    restaurant_names = [row[0] for row in restaurants]
-    '''
-    # 獲取每個餐廳的 reviews
+
+    # 組合回傳資料，包含 lat/lng（如果有）與 reviews
     result = []
-    for restaurant in restaurants:
-        reviews = Review.query.filter_by(restaurant_id=restaurant.id, user_id=session["user_id"]).all()
+    for restaurant in filtered_restaurants:
+        reviews = Review.query.filter_by(restaurant_id=restaurant.id, user_id=session.get("user_id")).all()
+        lat = getattr(restaurant, "_geo_lat", None)
+        lng = getattr(restaurant, "_geo_lng", None)
         result.append({
             "id": restaurant.id,
             "name": restaurant.name,
@@ -668,6 +644,8 @@ def api_restaurants():
             "cuisine_style": restaurant.cuisine_style,
             "price_level": restaurant.price_level,
             "is_healthy": restaurant.is_healthy,
+            "lat": lat,
+            "lng": lng,
             "reviews": [
                 {
                     "id": r.id,
@@ -681,10 +659,8 @@ def api_restaurants():
                 for r in reviews
             ]
         })
-    
+
     return jsonify({"restaurants": result})
-    '''
-    return jsonify({"restaurants": restaurants})
 
 @app.route("/api/diet_today", methods=["GET"])
 @login_required
