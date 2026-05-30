@@ -8,17 +8,13 @@
   </section>
 
   <div class="form-card">
-    <h2 class="form-title">飲控模式</h2>
-    <p class="form-subtitle">設定後會記錄在您的個人資料中，並於登入後維持目前狀態。</p>
 
     <form method="post" class="diet-setting-form">
       <div class="form-group">
-        <label for="diet_mode">開啟飲控模式</label>
         <label style="display:flex; align-items:center; gap:0.5rem; font-weight:500; color:var(--text);">
           <input type="checkbox" id="diet_mode" name="diet_mode" value="on" {% if form_data.diet_mode %}checked{% endif %}>
-          啟用飲控模式
+          <h2 class="form-title">飲控模式ON</h2>
         </label>
-        <p class="form-hint">關閉時不會覆寫原本的數值，僅停止顯示與計算。</p>
       </div>
 
       <div id="diet-fields" class="card" {% if not form_data.diet_mode %}style="display:none;"{% endif %}>
@@ -67,7 +63,9 @@
           </div>
         </div>
 
-        <p class="form-hint">BMR 公式：男 = 13.7 × 體重 + 5.0 × 身高 − 6.8 × 年齡 + 66；女 = 9.6 × 體重 + 1.8 × 身高 − 4.7 × 年齡 + 655。</p>
+        <p class="form-hint">BMR 公式：</p>
+        <p class="form-hint">男 = 13.7 × 體重 + 5.0 × 身高 − 6.8 × 年齡 + 66</p>
+        <p class="form-hint">女 = 9.6 × 體重 + 1.8 × 身高 − 4.7 × 年齡 + 655</p>
       </div>
 
       <div class="form-actions">

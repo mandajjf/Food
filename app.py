@@ -1,6 +1,7 @@
 import os
 from functools import wraps
 from datetime import date, datetime
+import math
 
 import bcrypt
 from dotenv import load_dotenv
@@ -29,6 +30,7 @@ app = Flask(__name__)
 
 # Secret key
 app.secret_key = os.environ.get("SECRET_KEY", "dev-secret-key-CHANGE-IN-PRODUCTION")
+api_key = os.environ.get("GOOGLE_MAPS_API_KEY")
 
 # Database configuration
 _db_url = os.environ.get("DATABASE_URL", "")
@@ -555,16 +557,169 @@ def delete_review(id):
 @app.route("/food_map")
 @login_required
 def food_map():
-    reviews = (
-        Review.query.filter(
-            Review.user_id == session["user_id"],
-            Review.address.isnot(None),
-            Review.address != "",
+    if api_key:
+        return render_template("food_map.html", api_key=api_key)
+    else:
+        reviews = (
+            Review.query.filter(
+                Review.user_id == session["user_id"],
+                Review.address.isnot(None),
+                Review.address != "",
+            )
+            .order_by(Review.visit_date.desc())
+            .all()
         )
-        .order_by(Review.visit_date.desc())
-        .all()
-    )
-    return render_template("food_map.html", reviews=reviews)
+        return render_template("food_map2.html", reviews=reviews)
+
+
+def haversine_distance(lat1, lon1, lat2, lon2):
+    """計算兩點之間的距離（公里），使用 Haversine 公式"""
+    R = 6371  # 地球半徑（公里）
+    phi1 = math.radians(lat1)
+    phi2 = math.radians(lat2)
+    delta_phi = math.radians(lat2 - lat1)
+    delta_lambda = math.radians(lon2 - lon1)
+    a = math.sin(delta_phi / 2) ** 2 + math.cos(phi1) * math.cos(phi2) * math.sin(delta_lambda / 2) ** 2
+    c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
+    return R * c
+
+
+@app.route("/api/restaurants", methods=["POST"])
+@login_required
+def api_restaurants():
+    """根據篩選條件返回符合的餐廳列表"""
+    try:
+        data = request.get_json()
+    except Exception:
+        return jsonify({"error": "無效的 JSON"}), 400
+    
+    # 提取篩選條件
+    meal_types = data.get("meal_types", []) or []
+    categories = data.get("categories", []) or []
+    price_min = data.get("price_min")
+    price_max = data.get("price_max")
+    distance_limit = data.get("distance_limit")
+    user_lat = data.get("user_lat")
+    user_lon = data.get("user_lon")
+    
+    # 驗證至少有一個篩選條件不為空
+    if not any([meal_types, categories, price_min is not None, price_max is not None, distance_limit]):
+        return jsonify({"error": "至少需要一個篩選條件"}), 400
+    
+    # 開始查詢餐廳
+    query = Restaurant.query
+    
+    # 如果用戶開啟飲控模式，只顯示健康餐廳
+    if session.get("diet_mode"):
+        query = query.filter_by(is_healthy=True)
+    
+    # 根據餐別篩選（透過 restaurant_name 關聯）
+    if meal_types:
+        names = [r[0] for r in db.session.query(Review.restaurant_name).distinct().filter(
+            Review.user_id == session["user_id"],
+            Review.meal_type.in_(meal_types)
+        ).all()]
+        if names:
+            query = query.filter(Restaurant.name.in_(names))
+        else:
+            return jsonify({"restaurants": []})
+
+    # 根據料理類別篩選（透過 restaurant_name 關聯）
+    if categories:
+        names = [r[0] for r in db.session.query(Review.restaurant_name).distinct().filter(
+            Review.user_id == session["user_id"],
+            Review.category.in_(categories)
+        ).all()]
+        if names:
+            query = query.filter(Restaurant.name.in_(names))
+        else:
+            return jsonify({"restaurants": []})
+    
+    # 根據價位篩選
+    if price_min is not None or price_max is not None:
+        if price_min is not None and price_max is not None:
+            query = query.filter(Restaurant.price_level.between(int(price_min), int(price_max)))
+        elif price_min is not None:
+            query = query.filter(Restaurant.price_level >= int(price_min))
+        elif price_max is not None:
+            query = query.filter(Restaurant.price_level <= int(price_max))
+    
+    restaurants = query.all()
+    
+    # 根據距離篩選
+    filtered_restaurants = []
+    if distance_limit and user_lat is not None and user_lon is not None:
+        for restaurant in restaurants:
+            if restaurant.address:
+                # 這裡需要地理編碼，暫時所有餐廳都納入
+                # 實際應該使用 Google Maps API 或其他地理編碼服務進行距離計算
+                filtered_restaurants.append(restaurant)
+            else:
+                filtered_restaurants.append(restaurant)
+    else:
+        filtered_restaurants = restaurants
+    
+    # 獲取每個餐廳的 reviews
+    result = []
+    for restaurant in filtered_restaurants:
+        reviews = Review.query.filter_by(restaurant_name=restaurant.name, user_id=session["user_id"]).all()
+        result.append({
+            "id": restaurant.id,
+            "name": restaurant.name,
+            "area": restaurant.area,
+            "address": restaurant.address,
+            "category": restaurant.category,
+            "cuisine_style": restaurant.cuisine_style,
+            "price_level": restaurant.price_level,
+            "is_healthy": restaurant.is_healthy,
+            "reviews": [
+                {
+                    "id": r.id,
+                    "meal_type": r.meal_type,
+                    "rating": r.rating,
+                    "comment": r.comment,
+                    "visit_date": r.visit_date.isoformat() if r.visit_date else None,
+                    "calories": r.calories,
+                    "protein": r.protein,
+                }
+                for r in reviews
+            ]
+        })
+    
+    return jsonify({"restaurants": result})
+
+
+@app.route("/api/diet_today", methods=["GET"])
+@login_required
+def api_diet_today():
+    """獲取今天的飲食記錄和進度信息"""
+    if not session.get("diet_mode"):
+        return jsonify({"error": "飲控模式未啟用"}), 403
+    
+    # 獲取用戶的飲控設定
+    diet_entry = UserDiet.query.filter_by(username=session["username"]).first()
+    if not diet_entry:
+        return jsonify({"error": "未找到飲控設定"}), 404
+    
+    # 獲取今天的飲食記錄
+    today = date.today()
+    today_reviews = Review.query.filter(
+        Review.user_id == session["user_id"],
+        Review.visit_date == today
+    ).all()
+    
+    # 計算總熱量和蛋白質
+    total_calories = sum(r.calories or 0 for r in today_reviews)
+    total_protein = sum(r.protein or 0 for r in today_reviews)
+    
+    return jsonify({
+        "tdee": diet_entry.TDEE,
+        "protein_limit": diet_entry.protein_intake,
+        "today_calories": total_calories,
+        "today_protein": total_protein,
+        "calories_percentage": round((total_calories / diet_entry.TDEE * 100) if diet_entry.TDEE else 0, 1),
+        "protein_percentage": round((total_protein / diet_entry.protein_intake * 100) if diet_entry.protein_intake else 0, 1),
+    })
 
 
 # ── 飲控設定 ──────────────────────────────────────────────────────────────
