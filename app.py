@@ -536,6 +536,7 @@ def delete_review(id):
 
 @app.route("/food_map")
 @login_required
+"""
 def food_map():
     if api_key:
         return render_template("food_map.html", api_key=api_key)
@@ -550,7 +551,10 @@ def food_map():
             .all()
         )
         return render_template("food_map2.html", reviews=reviews)
+"""
 
+def food_map():
+    return render_template("food_map.html", api_key=api_key)
 
 def haversine_distance(lat1, lon1, lat2, lon2):
     """計算兩點之間的距離（公里），使用 Haversine 公式"""

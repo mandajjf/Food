@@ -293,16 +293,45 @@
   };
   
   function initMap() {
+    // 地圖樣式配置
+    // 根據 Google Maps API 官方文件，支援的 poi 子類型有：
+    // poi.attraction, poi.business, poi.government, poi.medical, poi.park, poi.place_of_worship, poi.school, poi.sports_complex
+    // 餐廳、酒吧、咖啡廳不在 API 的 featureType 中，因此隱藏所有 POI，改由後端 API 搜尋結果自訂顯示
+    const mapStyles = [
+      {
+        // 隱藏所有 POI 標籤（餐廳、商店、景點等Google預設標籤）
+        featureType: "poi",
+        elementType: "labels",
+        stylers: [{ visibility: "off" }]
+      },
+      {
+        // 隱藏 POI 商家幾何圖形，避免預設圖示出現
+        featureType: "poi.business",
+        elementType: "geometry",
+        stylers: [{ visibility: "off" }]
+      },
+      {
+        featureType: "poi.restaurant",
+        elementType: "geometry",
+        stylers: [{ visibility: "on" }]
+      },
+      {
+        featureType: "poi.foodAndDrink.restaurant",
+        elementType: "labels",
+        stylers: [{ visibility: "on" }]
+      }
+    ];
+
     map = new google.maps.Map(document.getElementById("map"), {
       center: { lat: 25.017554367254085, lng: 121.53976252434965 },
       zoom: 15,
-      styles: [
-        {
-          featureType: "poi",
-          elementType: "labels",
-          stylers: [{ visibility: "off" }]
-        }
-      ]
+      zoomControl: false,
+      mapTypeControl: false,
+      scaleControl: false,
+      streetViewControl: false,
+      rotateControl: false,
+      fullscreenControl: false,
+      styles: mapStyles
     });
     
     navigator.geolocation.getCurrentPosition(function(position) {
@@ -318,7 +347,7 @@
         position: currentPosition,
         map: map,
         title: "你的位置",
-        icon: "http://maps.google.com/mapfiles/ms/icons/blue-dot.png"
+        icon: "http://maps.google.com/mapfiles/ms/icons/orange-dot.png"
       });
     });
     
