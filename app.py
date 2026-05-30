@@ -79,6 +79,26 @@ with app.app_context():
             _conn.commit()
         except Exception:
             _conn.rollback()
+        # 修正欄位拼字錯誤：acticity_coeff → activity_coeff
+        try:
+            _conn.execute(db.text(
+                "ALTER TABLE user_diets RENAME COLUMN acticity_coeff TO activity_coeff"
+            ))
+            _conn.commit()
+        except Exception:
+            _conn.rollback()
+        # 合併料理類別：義式、美式 → 西餐
+        try:
+            _conn.execute(db.text(
+                "UPDATE reviews SET category = '西餐' WHERE category IN ('義式', '美式')"
+            ))
+            _conn.execute(db.text(
+                "UPDATE restaurants SET category = '西餐' "
+                "WHERE category IN ('義式', '美式')"
+            ))
+            _conn.commit()
+        except Exception:
+            _conn.rollback()
 
 
 # ---------------------------------------------------------------------------
@@ -759,7 +779,7 @@ def diet_setting():
         "height": diet_entry.height if diet_entry and diet_entry.height is not None else "",
         "weight": diet_entry.weight if diet_entry and diet_entry.weight is not None else "",
         "age": diet_entry.age if diet_entry and diet_entry.age is not None else "",
-        "activity_coeff": diet_entry.acticity_coeff if diet_entry and diet_entry.acticity_coeff is not None else "",
+        "activity_coeff": diet_entry.activity_coeff if diet_entry and diet_entry.activity_coeff is not None else "",
         "target_type": diet_entry.target_type if diet_entry and diet_entry.target_type else "維持體重",
     }
     recommendation = None
@@ -770,7 +790,7 @@ def diet_setting():
         height_str = request.form.get("height", "").strip()
         weight_str = request.form.get("weight", "").strip()
         age_str = request.form.get("age", "").strip()
-        activity_coeff_str = request.form.get("activity_coeff", "") or request.form.get("acticity_coeff", "").strip()
+        activity_coeff_str = request.form.get("activity_coeff", "").strip()
         target_type = request.form.get("target_type", "維持體重").strip()
 
         form_data.update({
@@ -831,7 +851,7 @@ def diet_setting():
                 diet_entry.height = height
                 diet_entry.weight = weight
                 diet_entry.age = age
-                diet_entry.acticity_coeff = activity_coeff
+                diet_entry.activity_coeff = activity_coeff
                 diet_entry.target_type = target_type
                 recommendation = calculate_diet_recommendation(
                     gender=gender,
