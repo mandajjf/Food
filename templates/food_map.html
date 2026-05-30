@@ -182,56 +182,57 @@
 <div class="map-container">
   <div id="map"></div>
   <div id="constrain">
-    <h4>餐廳篩選</h4>
-    
-    <!-- 餐別篩選 -->
-    <div class="filter-section">
-      <h5>餐別</h5>
-      <div class="checkbox-group" id="mealTypesGroup">
-        <label><input type="checkbox" name="meal_type" value="早餐"> 早餐</label>
-        <label><input type="checkbox" name="meal_type" value="午餐"> 午餐</label>
-        <label><input type="checkbox" name="meal_type" value="晚餐"> 晚餐</label>
-        <label><input type="checkbox" name="meal_type" value="點心"> 點心</label>
+    <div id="filterInputs">
+      <h4>餐廳篩選</h4>
+
+      <!-- 餐別篩選 -->
+      <div class="filter-section">
+        <h5>餐別</h5>
+        <div class="checkbox-group" id="mealTypesGroup">
+          <label><input type="checkbox" name="meal_type" value="早餐"> 早餐</label>
+          <label><input type="checkbox" name="meal_type" value="午餐"> 午餐</label>
+          <label><input type="checkbox" name="meal_type" value="晚餐"> 晚餐</label>
+          <label><input type="checkbox" name="meal_type" value="點心"> 點心</label>
+        </div>
       </div>
-    </div>
-    
-    <!-- 料理類別篩選 -->
-    <div class="filter-section">
-      <h5>料理類別</h5>
-      <div class="checkbox-group" id="categoriesGroup">
-        <label><input type="checkbox" name="category" value="台式"> 台式</label>
-        <label><input type="checkbox" name="category" value="日式"> 日式</label>
-        <label><input type="checkbox" name="category" value="韓式"> 韓式</label>
-        <label><input type="checkbox" name="category" value="西餐"> 西餐</label>
-        <label><input type="checkbox" name="category" value="甜點"> 甜點</label>
-        <label><input type="checkbox" name="category" value="飲料"> 飲料</label>
-        <label><input type="checkbox" name="category" value="其他"> 其他</label>
+
+      <!-- 料理類別篩選 -->
+      <div class="filter-section">
+        <h5>料理類別</h5>
+        <div class="checkbox-group" id="categoriesGroup">
+          <label><input type="checkbox" name="category" value="台式"> 台式</label>
+          <label><input type="checkbox" name="category" value="日式"> 日式</label>
+          <label><input type="checkbox" name="category" value="韓式"> 韓式</label>
+          <label><input type="checkbox" name="category" value="西餐"> 西餐</label>
+          <label><input type="checkbox" name="category" value="甜點"> 甜點</label>
+          <label><input type="checkbox" name="category" value="飲料"> 飲料</label>
+          <label><input type="checkbox" name="category" value="其他"> 其他</label>
+        </div>
       </div>
-    </div>
-    
-    <!-- 價位篩選 -->
-    <div class="filter-section">
-      <h5>價位範圍</h5>
-      <div class="price-range-container">
-        <input type="range" id="priceMin" name="price_min" min="-0.5" max="6.5" value="-0.5" step="1">
-        <input type="range" id="priceMax" name="price_max" min="-0.5" max="6.5" value="6.5" step="1">
+
+      <!-- 價位篩選 -->
+      <div class="filter-section">
+        <h5>價位範圍</h5>
+        <div class="price-range-container">
+          <input type="range" id="priceMin" name="price_min" min="-0.5" max="6.5" value="-0.5" step="1">
+          <input type="range" id="priceMax" name="price_max" min="-0.5" max="6.5" value="6.5" step="1">
+        </div>
+        <div class="price-display">
+          <span id="priceMinLabel">0元</span> ~ <span id="priceMaxLabel">無上限</span>
+        </div>
       </div>
-      <div class="price-display">
-        <span id="priceMinLabel">0元</span> ~ <span id="priceMaxLabel">無上限</span>
+
+      <!-- 距離上限 -->
+      <div class="filter-section">
+        <h5>距離上限 (公里)</h5>
+        <input type="number" id="distanceLimit" name="distance_limit" min="0" step="0.1" placeholder="留空表示不限">
       </div>
+
+      <!-- 提交按鈕 -->
+      <button class="submit-btn" id="submitBtn">搜尋餐廳</button>
     </div>
-    
-    <!-- 距離上限 -->
-    <div class="filter-section">
-      <h5>距離上限 (公里)</h5>
-      <input type="number" id="distanceLimit" name="distance_limit" min="0" step="0.1" placeholder="留空表示不限">
-    </div>
-    
-    <!-- 提交按鈕 -->
-    <button class="submit-btn" id="submitBtn">搜尋餐廳</button>
-    
-    <!-- 評論區 -->
-    </div>
+
+    <!-- 評論區（搜尋後出現，在側邊欄內） -->
     <div class="reviews-container" id="reviewsContainer" style="display: none;">
       <h5>餐廳評論</h5>
       <div id="reviewsList"></div>
