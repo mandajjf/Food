@@ -614,10 +614,38 @@ def api_restaurants():
             return jsonify({"restaurants": []})
     
     # 根據料理類別篩選
+    # 前端的類別名稱與 DB 的 cuisine_style 不完全相同，需要對應表
+    _STYLE_MAP = {
+        "台式": ["台式", "中餐"],
+        "日式": ["日式"],
+        "韓式": ["韓式"],
+        "西餐": ["西餐", "義式", "美式"],
+        "甜點": ["甜點"],
+        "飲料": ["飲料", "點心"],
+        "其他": [],
+    }
     if categories:
-        query = query.filter(
-            (Restaurant.cuisine_style.in_(categories)) | (Restaurant.category.in_(categories))
-        )
+        # 展開所有對應的 cuisine_style 值
+        expanded_styles = []
+        include_null = False
+        for c in categories:
+            mapped = _STYLE_MAP.get(c, [c])
+            if mapped:
+                expanded_styles.extend(mapped)
+            else:
+                include_null = True  # 「其他」= cuisine_style 為 NULL 或不在已知清單的
+
+        conditions = []
+        if expanded_styles:
+            conditions.append(Restaurant.cuisine_style.in_(expanded_styles))
+        if include_null:
+            known_styles = [s for styles in _STYLE_MAP.values() for s in styles]
+            conditions.append(
+                (Restaurant.cuisine_style == None) |
+                (~Restaurant.cuisine_style.in_(known_styles))
+            )
+        if conditions:
+            query = query.filter(db.or_(*conditions))
 
     # 根據價位篩選
     if price_min is not None or price_max is not None:
