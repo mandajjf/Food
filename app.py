@@ -88,15 +88,12 @@ with app.app_context():
             _conn.commit()
         except Exception:
             _conn.rollback()
-        # 合併料理類別：義式、美式 → 西餐
+        # 統一料理類別：日記選項與餐廳 cuisine_style 對齊
         try:
-            _conn.execute(db.text(
-                "UPDATE reviews SET category = '西餐' WHERE category IN ('義式', '美式')"
-            ))
-            _conn.execute(db.text(
-                "UPDATE restaurants SET category = '西餐' "
-                "WHERE category IN ('義式', '美式')"
-            ))
+            _conn.execute(db.text("UPDATE reviews SET category = '西餐' WHERE category IN ('義式', '美式')"))
+            _conn.execute(db.text("UPDATE reviews SET category = '中餐' WHERE category IN ('台式', '韓式')"))
+            _conn.execute(db.text("UPDATE reviews SET category = '點心' WHERE category = '飲料'"))
+            _conn.execute(db.text("UPDATE restaurants SET category = '西餐' WHERE category IN ('義式', '美式')"))
             _conn.commit()
         except Exception:
             _conn.rollback()
@@ -249,7 +246,7 @@ def dashboard():
 # ── 新增紀錄 ──────────────────────────────────────────────────────────────
 
 MEAL_TYPES = ["早餐", "午餐", "晚餐", "點心"]
-CATEGORIES = ["台式", "日式", "韓式", "西餐", "甜點", "飲料", "其他"]
+CATEGORIES = ["中餐", "日式", "西餐", "甜點", "點心", "其他"]
 
 
 @app.route("/new_review", methods=["GET", "POST"])
