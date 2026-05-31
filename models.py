@@ -52,6 +52,7 @@ class Review(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
     restaurant_name = db.Column(db.String(200), nullable=False)
+    restaurant_id = db.Column(db.Integer, db.ForeignKey("restaurants.id"), nullable=True)
     visit_date = db.Column(db.Date, nullable=False)
     meal_type = db.Column(db.String(20))
     category = db.Column(db.String(50))

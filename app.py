@@ -96,6 +96,19 @@ with app.app_context():
             _conn.commit()
         except Exception:
             _conn.rollback()
+        # 新增 reviews.restaurant_id（nullable FK），回填現有資料
+        _add_column_if_missing(_conn, "reviews", "restaurant_id", "INTEGER")
+        try:
+            _conn.execute(db.text(
+                "UPDATE reviews SET restaurant_id = ("
+                "  SELECT restaurants.id FROM restaurants"
+                "  WHERE restaurants.name = reviews.restaurant_name"
+                "  LIMIT 1"
+                ") WHERE restaurant_id IS NULL"
+            ))
+            _conn.commit()
+        except Exception:
+            _conn.rollback()
 
 
 # ---------------------------------------------------------------------------
@@ -320,9 +333,21 @@ def new_review():
                 form=request.form,
             )
 
+        # 若餐廳不在資料庫中，自動建立一筆基本紀錄
+        restaurant_obj = Restaurant.query.filter_by(name=restaurant_name).first()
+        if not restaurant_obj:
+            restaurant_obj = Restaurant(
+                name=restaurant_name,
+                address=address or None,
+                created_by=session["user_id"],
+            )
+            db.session.add(restaurant_obj)
+            db.session.flush()  # 取得 restaurant_obj.id
+
         review = Review(
             user_id=session["user_id"],
             restaurant_name=restaurant_name,
+            restaurant_id=restaurant_obj.id,
             visit_date=visit_date,
             meal_type=meal_type or None,
             category=category or None,
@@ -334,15 +359,6 @@ def new_review():
             protein=protein,
         )
         db.session.add(review)
-
-        # 若餐廳不在資料庫中，自動建立一筆基本紀錄
-        if not Restaurant.query.filter_by(name=restaurant_name).first():
-            db.session.add(Restaurant(
-                name=restaurant_name,
-                address=address or None,
-                created_by=session["user_id"],
-            ))
-
         db.session.commit()
 
         flash("美食紀錄新增成功！", "success")
@@ -506,13 +522,17 @@ def edit_review(id):
         review.protein = protein
         review.updated_at = datetime.utcnow()
 
-        # 若餐廳不在資料庫中，自動建立一筆基本紀錄
-        if not Restaurant.query.filter_by(name=restaurant_name).first():
-            db.session.add(Restaurant(
+        # 若餐廳不在資料庫中，自動建立；同步更新 restaurant_id
+        restaurant_obj = Restaurant.query.filter_by(name=restaurant_name).first()
+        if not restaurant_obj:
+            restaurant_obj = Restaurant(
                 name=restaurant_name,
                 address=address or None,
                 created_by=session["user_id"],
-            ))
+            )
+            db.session.add(restaurant_obj)
+            db.session.flush()
+        review.restaurant_id = restaurant_obj.id
 
         db.session.commit()
 
@@ -605,14 +625,32 @@ def api_restaurants():
 
     # ── 只顯示我記錄過的餐廳 ──────────────────────────────────────────────
     if only_visited:
-        visited_names = [
-            r[0] for r in db.session.query(Review.restaurant_name).distinct().filter(
-                Review.user_id == session["user_id"]
+        uid = session["user_id"]
+        # 優先用 restaurant_id（正確 FK 關聯）
+        visited_ids = [
+            r[0] for r in db.session.query(Review.restaurant_id).distinct().filter(
+                Review.user_id == uid,
+                Review.restaurant_id.isnot(None)
             ).all()
         ]
-        if not visited_names:
+        # 回退：舊紀錄若無 restaurant_id，用名稱比對
+        visited_names = [
+            r[0] for r in db.session.query(Review.restaurant_name).distinct().filter(
+                Review.user_id == uid,
+                Review.restaurant_id.is_(None)
+            ).all()
+        ]
+        if not visited_ids and not visited_names:
             return jsonify({"restaurants": [], "empty_reason": "no_records"})
-        query = query.filter(Restaurant.name.in_(visited_names))
+
+        id_filter   = Restaurant.id.in_(visited_ids)   if visited_ids   else None
+        name_filter = Restaurant.name.in_(visited_names) if visited_names else None
+        if id_filter is not None and name_filter is not None:
+            query = query.filter(db.or_(id_filter, name_filter))
+        elif id_filter is not None:
+            query = query.filter(id_filter)
+        else:
+            query = query.filter(name_filter)
 
     # 根據餐別篩選（透過 restaurant_name 關聯）
     if meal_types:
