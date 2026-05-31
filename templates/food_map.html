@@ -197,6 +197,15 @@
       </div>
     </div>-->
     
+    <!-- 我記錄過的餐廳 -->
+    <div class="filter-section">
+      <div class="checkbox-group">
+        <label style="font-weight:600;">
+          <input type="checkbox" id="onlyVisited"> 只顯示我記錄過的餐廳
+        </label>
+      </div>
+    </div>
+
     <!-- 料理類別篩選 -->
     <div class="filter-section">
       <h5>料理類別</h5>
@@ -374,8 +383,11 @@
     const distanceLimitStr = document.getElementById("distanceLimit").value.trim();
     const distanceLimit = distanceLimitStr !== "" ? parseFloat(distanceLimitStr) : null;
 
+    const onlyVisited = document.getElementById("onlyVisited").checked;
+
     return {
       categories,
+      only_visited: onlyVisited,
       price_min: priceMinLevel > 0 ? priceMinLevel : null,
       price_max: priceMaxLevel,
       distance_limit: distanceLimit,
@@ -418,7 +430,11 @@
       if (data.error) { showSidebarMessage(data.error); return; }
 
       if (!data.restaurants || data.restaurants.length === 0) {
-        showSidebarMessage("找不到符合條件的餐廳");
+        if (data.empty_reason === "no_records") {
+          showSidebarMessage("📝 目前還沒有記錄過的餐廳，去新增紀錄吧！");
+        } else {
+          showSidebarMessage("找不到符合條件的餐廳");
+        }
         return;
       }
 

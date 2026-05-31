@@ -8,7 +8,6 @@ import requests
 from dotenv import load_dotenv
 from flask import (
     Flask,
-    abort,
     flash,
     jsonify,
     redirect,
@@ -554,7 +553,6 @@ def delete_review(id):
 
 @app.route("/food_map")
 @login_required
-
 def food_map():
     # 從 DB 動態取得所有 cuisine_style 值
     raw = db.session.query(Restaurant.cuisine_style).distinct().all()
@@ -589,15 +587,14 @@ def api_restaurants():
         return jsonify({"error": "無效的 JSON"}), 400
 
     # 提取篩選條件
-    meal_types = data.get("meal_types", []) or []
-    categories = data.get("categories", []) or []
-    price_min = data.get("price_min")
-    price_max = data.get("price_max")
+    meal_types   = data.get("meal_types", []) or []
+    categories   = data.get("categories", []) or []
+    price_min    = data.get("price_min")
+    price_max    = data.get("price_max")
     distance_limit = data.get("distance_limit")
-    user_lat = data.get("user_lat")
-    user_lon = data.get("user_lon")
-
-    # 無篩選條件 = 顯示全部餐廳（不強制要求任何條件）
+    user_lat     = data.get("user_lat")
+    user_lon     = data.get("user_lon")
+    only_visited = bool(data.get("only_visited", False))
 
     # 開始查詢餐廳
     query = Restaurant.query
@@ -605,7 +602,18 @@ def api_restaurants():
     # 如果用戶開啟飲控模式，只顯示健康餐廳
     if session.get("diet_mode"):
         query = query.filter_by(is_healthy=True)
-    
+
+    # ── 只顯示我記錄過的餐廳 ──────────────────────────────────────────────
+    if only_visited:
+        visited_names = [
+            r[0] for r in db.session.query(Review.restaurant_name).distinct().filter(
+                Review.user_id == session["user_id"]
+            ).all()
+        ]
+        if not visited_names:
+            return jsonify({"restaurants": [], "empty_reason": "no_records"})
+        query = query.filter(Restaurant.name.in_(visited_names))
+
     # 根據餐別篩選（透過 restaurant_name 關聯）
     if meal_types:
         names = [r[0] for r in db.session.query(Review.restaurant_name).distinct().filter(
