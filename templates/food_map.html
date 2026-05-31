@@ -424,20 +424,21 @@
         alert(data.error);
         return;
       }
-      
+
       const _fi = document.getElementById("filterInputs");
       if (_fi) _fi.style.display = "none";
-      
-      data.restaurants.forEach(restaurant => {
-        addRestaurantMarker(restaurant);
-      });
 
       if (data.restaurants.length === 0) {
-        document.getElementById("reviewsContainer").innerHTML = '<div class="loading">找不到符合條件的餐廳</div>';
-      } else {
         document.getElementById("reviewsContainer").innerHTML =
-          `<div class="loading">找到 ${data.restaurants.length} 間餐廳，點擊地圖標記查看評論</div>`;
+          '<div class="loading">找不到符合條件的餐廳</div>';
+        return;
       }
+
+      // 立刻把餐廳清單顯示在側邊欄，不等 geocoding
+      showRestaurantList(data.restaurants);
+
+      // 非同步在地圖上打標記
+      data.restaurants.forEach(restaurant => addRestaurantMarker(restaurant));
     })
     .catch(error => {
       console.error("搜尋錯誤:", error);
@@ -445,89 +446,72 @@
       document.getElementById("reviewsContainer").style.display = "none";
     });
   }
-  
+
+  // 立刻把搜尋結果渲染成清單
+  function showRestaurantList(restaurants) {
+    const container = document.getElementById("reviewsContainer");
+    const list = document.getElementById("reviewsList");
+    let html = `<p style="font-size:0.85em;color:#666;margin-bottom:8px;">找到 ${restaurants.length} 間餐廳，點擊可查看評論</p>`;
+    restaurants.forEach(r => {
+      html += `
+        <div class="review-item" style="cursor:pointer;" onclick="selectRestaurant(${JSON.stringify(r).replace(/"/g, '&quot;')})">
+          <div style="font-weight:600;font-size:0.95em;">${r.name}</div>
+          <div class="review-meta">${r.cuisine_style || r.category || ''} ${r.area ? '· ' + r.area : ''}</div>
+          ${r.address ? `<div class="review-meta">📍 ${r.address}</div>` : ''}
+        </div>`;
+    });
+    list.innerHTML = html;
+    container.style.display = "block";
+  }
+
+  // 點擊清單或地圖標記都呼叫這個
+  function selectRestaurant(restaurant) {
+    showRestaurantReviews(restaurant);
+    const constrain = document.getElementById('constrain');
+    if (constrain) constrain.scrollTop = constrain.scrollHeight;
+  }
+
   function addRestaurantMarker(restaurant) {
-    // 優先使用後端回傳的 lat/lng；若沒有則回退到 Geocoding
     const geocoder = new google.maps.Geocoder();
-    const hasCoords = restaurant.lat != null && restaurant.lng != null;
-    const createMarker = (location) => {
+
+    const placeMarker = (location) => {
+      const infoContent = `
+        <div style="padding:8px;">
+          <strong>${restaurant.name}</strong><br>
+          <span style="font-size:0.85em;color:#666;">
+            ${restaurant.cuisine_style || restaurant.category || ''}
+            ${restaurant.area ? ' · ' + restaurant.area : ''}
+          </span>
+        </div>`;
+      const infoWindow = new google.maps.InfoWindow({ content: infoContent });
       const marker = new google.maps.Marker({
         position: location,
         map: map,
         title: restaurant.name,
         icon: "http://maps.google.com/mapfiles/ms/icons/red-dot.png"
       });
-      // 將資料庫的 id 當作 place_id
-      marker.place_id = restaurant.id;
-
-      const infoWindow = new google.maps.InfoWindow({
-        content: `
-          <div style="padding: 10px;">
-            <h6>${restaurant.name}</h6>
-            <p style="margin: 5px 0; font-size: 0.9em;">
-              <strong>區域:</strong> ${restaurant.area || "未知"}<br>
-              <strong>類型:</strong> ${restaurant.category || "未知"}<br>
-              <strong>風格:</strong> ${restaurant.cuisine_style || "未知"}
-            </p>
-          </div>
-        `
-      });
-
       marker.addListener("click", () => {
         infoWindows.forEach(iw => iw.close());
         infoWindow.open(map, marker);
-        selectedMarker = restaurant;
-        // 顯示該餐廳的評論（從後端回傳的 restaurant.reviews）
-        showRestaurantReviews(restaurant);
-        // 把 constrain 區塊滾到頂部以便看到評論
-        const constrain = document.getElementById('constrain');
-        if (constrain) constrain.scrollTop = 0;
+        selectRestaurant(restaurant);
       });
-
       markers.push(marker);
       infoWindows.push(infoWindow);
     };
 
-    if (hasCoords) {
-      createMarker({ lat: restaurant.lat, lng: restaurant.lng });
+    // 優先用後端已計算的座標
+    if (restaurant.lat != null && restaurant.lng != null) {
+      placeMarker({ lat: restaurant.lat, lng: restaurant.lng });
       return;
     }
 
-    if (!restaurant.address) {
-      console.warn("餐廳缺少地址:", restaurant.name);
-      return;
-    }
+    if (!restaurant.address) return;
 
     geocoder.geocode({ address: restaurant.address }, (results, status) => {
       if (status === "OK" && results.length > 0) {
-        const location = results[0].geometry.location;
-        createMarker(location);
-        
-        const infoWindow = new google.maps.InfoWindow({
-          content: `
-            <div style="padding: 10px;">
-              <h6>${restaurant.name}</h6>
-              <p style="margin: 5px 0; font-size: 0.9em;">
-                <strong>區域:</strong> ${restaurant.area || "未知"}<br>
-                <strong>類型:</strong> ${restaurant.category || "未知"}<br>
-                <strong>風格:</strong> ${restaurant.cuisine_style || "未知"}
-              </p>
-            </div>
-          `
-        });
-        
-        marker.addListener("click", () => {
-          // 關閉其他信息窗口
-          infoWindows.forEach(iw => iw.close());
-          infoWindow.open(map, marker);
-          selectedMarker = restaurant;
-          
-          // 顯示該餐廳的評論
-          showRestaurantReviews(restaurant);
-        });
-        
+        placeMarker(results[0].geometry.location);
       } else {
-        console.warn("無法地理編碼地址:", restaurant.address, status);
+        console.warn(`Geocoding 失敗 [${status}]:`, restaurant.name, restaurant.address);
       }
     });
   }
