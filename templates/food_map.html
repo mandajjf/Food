@@ -431,9 +431,12 @@
       data.restaurants.forEach(restaurant => {
         addRestaurantMarker(restaurant);
       });
-      
+
       if (data.restaurants.length === 0) {
         document.getElementById("reviewsContainer").innerHTML = '<div class="loading">找不到符合條件的餐廳</div>';
+      } else {
+        document.getElementById("reviewsContainer").innerHTML =
+          `<div class="loading">找到 ${data.restaurants.length} 間餐廳，點擊地圖標記查看評論</div>`;
       }
     })
     .catch(error => {
