@@ -559,7 +559,17 @@ def delete_review(id):
 @login_required
 
 def food_map():
-    return render_template("food_map.html", api_key=api_key)
+    # 從 DB 動態取得所有 cuisine_style 值
+    raw = db.session.query(Restaurant.cuisine_style).distinct().all()
+    cuisine_styles = sorted(
+        [r[0] for r in raw if r[0]],
+        key=lambda x: x
+    )
+    return render_template(
+        "food_map.html",
+        api_key=api_key,
+        cuisine_styles=cuisine_styles,
+    )
 
 def haversine_distance(lat1, lon1, lat2, lon2):
     """計算兩點之間的距離（公里），使用 Haversine 公式"""
@@ -613,36 +623,24 @@ def api_restaurants():
         else:
             return jsonify({"restaurants": []})
     
-    # 根據料理類別篩選
-    # 前端的類別名稱與 DB 的 cuisine_style 不完全相同，需要對應表
-    _STYLE_MAP = {
-        "台式": ["台式", "中餐"],
-        "日式": ["日式"],
-        "韓式": ["韓式"],
-        "西餐": ["西餐", "義式", "美式"],
-        "甜點": ["甜點"],
-        "飲料": ["飲料", "點心"],
-        "其他": [],
-    }
+    # 根據料理類別篩選（前端選項直接對應 DB 的 cuisine_style 值）
     if categories:
-        # 展開所有對應的 cuisine_style 值
-        expanded_styles = []
-        include_null = False
-        for c in categories:
-            mapped = _STYLE_MAP.get(c, [c])
-            if mapped:
-                expanded_styles.extend(mapped)
-            else:
-                include_null = True  # 「其他」= cuisine_style 為 NULL 或不在已知清單的
-
+        has_other = "其他" in categories
+        real_styles = [c for c in categories if c != "其他"]
         conditions = []
-        if expanded_styles:
-            conditions.append(Restaurant.cuisine_style.in_(expanded_styles))
-        if include_null:
-            known_styles = [s for styles in _STYLE_MAP.values() for s in styles]
+        if real_styles:
+            conditions.append(Restaurant.cuisine_style.in_(real_styles))
+        if has_other:
+            # 「其他」= cuisine_style 為 NULL 或不在任何已知值的
+            known = db.session.query(Restaurant.cuisine_style).filter(
+                Restaurant.cuisine_style.isnot(None)
+            ).distinct().all()
+            known_styles = [r[0] for r in known]
             conditions.append(
-                (Restaurant.cuisine_style == None) |
-                (~Restaurant.cuisine_style.in_(known_styles))
+                db.or_(
+                    Restaurant.cuisine_style == None,
+                    ~Restaurant.cuisine_style.in_(known_styles)
+                )
             )
         if conditions:
             query = query.filter(db.or_(*conditions))

@@ -201,12 +201,9 @@
     <div class="filter-section">
       <h5>料理類別</h5>
       <div class="checkbox-group" id="categoriesGroup">
-        <label><input type="checkbox" name="category" value="台式"> 台式</label>
-        <label><input type="checkbox" name="category" value="日式"> 日式</label>
-        <label><input type="checkbox" name="category" value="韓式"> 韓式</label>
-        <label><input type="checkbox" name="category" value="西餐"> 西餐</label>
-        <label><input type="checkbox" name="category" value="甜點"> 甜點</label>
-        <label><input type="checkbox" name="category" value="飲料"> 飲料</label>
+        {% for style in cuisine_styles %}
+          <label><input type="checkbox" name="category" value="{{ style }}"> {{ style }}</label>
+        {% endfor %}
         <label><input type="checkbox" name="category" value="其他"> 其他</label>
       </div>
     </div>
