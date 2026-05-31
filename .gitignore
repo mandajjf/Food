@@ -32,3 +32,4 @@ restaurants.json
 foodlog.json
 testapp.py
 .xlsx
+*.xlsx

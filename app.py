@@ -602,18 +602,15 @@ def api_restaurants():
     if session.get("diet_mode"):
         query = query.filter_by(is_healthy=True)
     
-    # 根據餐別篩選
+    # 根據餐別篩選（透過 restaurant_name 關聯）
     if meal_types:
-        # 查找該使用者對這些餐別有評論的餐廳
-        restaurant_ids_with_meal_types = db.session.query(Review.restaurant_id).distinct().filter(
+        names = [r[0] for r in db.session.query(Review.restaurant_name).distinct().filter(
             Review.user_id == session["user_id"],
             Review.meal_type.in_(meal_types)
-        ).all()
-        restaurant_ids_with_meal_types = [r[0] for r in restaurant_ids_with_meal_types]
-        if restaurant_ids_with_meal_types:
-            query = query.filter(Restaurant.id.in_(restaurant_ids_with_meal_types))
+        ).all()]
+        if names:
+            query = query.filter(Restaurant.name.in_(names))
         else:
-            # 如果沒有符合的餐廳，直接返回空
             return jsonify({"restaurants": []})
     
     # 根據料理類別篩選
@@ -666,7 +663,7 @@ def api_restaurants():
     # 組合回傳資料，包含 lat/lng（如果有）與 reviews
     result = []
     for restaurant in filtered_restaurants:
-        reviews = Review.query.filter_by(restaurant_id=restaurant.id, user_id=session.get("user_id")).all()
+        reviews = Review.query.filter_by(restaurant_name=restaurant.name, user_id=session.get("user_id")).all()
         lat = getattr(restaurant, "_geo_lat", None)
         lng = getattr(restaurant, "_geo_lng", None)
         result.append({
