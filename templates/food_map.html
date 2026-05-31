@@ -376,20 +376,18 @@
     const distanceLimit = distanceLimitStr ? parseFloat(distanceLimitStr) : null;
     
     return {
-      //meal_types: mealTypes,
       categories: categories,
-      price_min: priceMinLevel,
-      price_max: priceMaxLevel,
+      price_min: priceMinLevel > 0 ? priceMinLevel : null,  // 最小值(0)視為不篩選
+      price_max: priceMaxLevel,                              // 最大值已是 null
       distance_limit: distanceLimit,
       user_lat: currentPosition?.lat,
       user_lon: currentPosition?.lng
     };
   }
-  
+
   function validateFilters(filters) {
-    //if (filters.meal_types.length > 0) return true;
     if (filters.categories.length > 0) return true;
-    if (filters.price_min !== 0 || filters.price_max !== null) return true;
+    if (filters.price_min !== null || filters.price_max !== null) return true;
     if (filters.distance_limit) return true;
     return false;
   }
