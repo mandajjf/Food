@@ -350,123 +350,118 @@
     document.getElementById("priceMaxLabel").textContent = priceRanges[String(maxVal)] || "無上限";
   }
   
+  // 目前搜尋結果（用 index 取代 JSON 嵌入 onclick）
+  let currentRestaurants = [];
+
+  function showSidebarMessage(msg) {
+    const c = document.getElementById("reviewsContainer");
+    c.innerHTML = `<div class="loading">${msg}</div>`;
+    c.style.display = "block";
+  }
+
   function getSelectedFilters() {
-    /*
-    const mealTypes = Array.from(
-      document.querySelectorAll('#mealTypesGroup input[type="checkbox"]:checked')
-    ).map(el => el.value);
-    */
     const categories = Array.from(
       document.querySelectorAll('#categoriesGroup input[type="checkbox"]:checked')
     ).map(el => el.value);
-    
+
     let priceMin = parseFloat(document.getElementById("priceMin").value);
     let priceMax = parseFloat(document.getElementById("priceMax").value);
-    if (priceMin > priceMax) {
-      [priceMin, priceMax] = [priceMax, priceMin];
-    }
-    
+    if (priceMin > priceMax) [priceMin, priceMax] = [priceMax, priceMin];
+
     const priceMinLevel = priceSliderToLevel[String(priceMin)];
     const priceMaxLevel = priceMax === 6.5 ? null : priceSliderToLevel[String(priceMax)];
-    
-    const distanceLimitStr = document.getElementById("distanceLimit").value;
-    const distanceLimit = distanceLimitStr ? parseFloat(distanceLimitStr) : null;
-    
+
+    const distanceLimitStr = document.getElementById("distanceLimit").value.trim();
+    const distanceLimit = distanceLimitStr !== "" ? parseFloat(distanceLimitStr) : null;
+
     return {
-      categories: categories,
-      price_min: priceMinLevel > 0 ? priceMinLevel : null,  // 最小值(0)視為不篩選
-      price_max: priceMaxLevel,                              // 最大值已是 null
+      categories,
+      price_min: priceMinLevel > 0 ? priceMinLevel : null,
+      price_max: priceMaxLevel,
       distance_limit: distanceLimit,
-      user_lat: currentPosition?.lat,
-      user_lon: currentPosition?.lng
+      user_lat: currentPosition ? currentPosition.lat : null,
+      user_lon: currentPosition ? currentPosition.lng : null,
     };
   }
 
-  function validateFilters(filters) {
-    if (filters.categories.length > 0) return true;
-    if (filters.price_min !== null || filters.price_max !== null) return true;
-    if (filters.distance_limit) return true;
-    return false;
-  }
-  
   function searchRestaurants() {
     const filters = getSelectedFilters();
-    
-    if (!validateFilters(filters)) {
-      alert("請至少選擇一個篩選條件");
+
+    // 有距離限制但沒有定位 → 明確提示
+    if (filters.distance_limit !== null && filters.user_lat === null) {
+      showSidebarMessage("📍 需要開啟定位才能使用距離篩選");
+      document.getElementById("reviewsContainer").style.display = "block";
       return;
     }
-    
-    // 清空舊的標記
-    markers.forEach(marker => marker.setMap(null));
+
+    // 清空舊標記
+    markers.forEach(m => m.setMap(null));
     infoWindows.forEach(iw => iw.close());
     markers = [];
     infoWindows = [];
-    
-    // 顯示加載狀態
-    document.getElementById("reviewsContainer").innerHTML = '<div class="loading">搜尋中...</div>';
-    document.getElementById("reviewsContainer").style.display = "block";
-    
-    // 發送 AJAX 請求
+
+    showSidebarMessage("搜尋中...");
+
     fetch("/api/restaurants", {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify(filters)
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(filters),
+      credentials: "same-origin",
     })
     .then(response => {
-      if (!response.ok) throw new Error("搜尋失敗");
+      if (response.status === 401) throw Object.assign(new Error(), { userMsg: "請先登入後使用此功能" });
+      if (response.status === 400) throw Object.assign(new Error(), { userMsg: "篩選條件有誤，請重新選擇" });
+      if (!response.ok)           throw Object.assign(new Error(), { userMsg: "伺服器錯誤，請稍後再試" });
       return response.json();
     })
     .then(data => {
-      if (data.error) {
-        alert(data.error);
+      if (data.error) { showSidebarMessage(data.error); return; }
+
+      if (!data.restaurants || data.restaurants.length === 0) {
+        showSidebarMessage("找不到符合條件的餐廳");
         return;
       }
 
-      const _fi = document.getElementById("filterInputs");
-      if (_fi) _fi.style.display = "none";
-
-      if (data.restaurants.length === 0) {
-        document.getElementById("reviewsContainer").innerHTML =
-          '<div class="loading">找不到符合條件的餐廳</div>';
-        return;
-      }
-
-      // 立刻把餐廳清單顯示在側邊欄，不等 geocoding
+      currentRestaurants = data.restaurants;
       showRestaurantList(data.restaurants);
-
-      // 非同步在地圖上打標記
-      data.restaurants.forEach(restaurant => addRestaurantMarker(restaurant));
+      data.restaurants.forEach(r => addRestaurantMarker(r));
     })
     .catch(error => {
       console.error("搜尋錯誤:", error);
-      alert("搜尋失敗，請重試");
-      document.getElementById("reviewsContainer").style.display = "none";
+      showSidebarMessage(error.userMsg || "搜尋失敗，請稍後再試");
     });
   }
 
-  // 立刻把搜尋結果渲染成清單
   function showRestaurantList(restaurants) {
-    const container = document.getElementById("reviewsContainer");
     const list = document.getElementById("reviewsList");
-    let html = `<p style="font-size:0.85em;color:#666;margin-bottom:8px;">找到 ${restaurants.length} 間餐廳，點擊可查看評論</p>`;
-    restaurants.forEach(r => {
+    const container = document.getElementById("reviewsContainer");
+    let html = `<p style="font-size:0.85em;color:#666;margin-bottom:8px;">找到 ${restaurants.length} 間餐廳，點擊查看評論</p>`;
+    restaurants.forEach((r, i) => {
+      const meta = [r.cuisine_style || r.category, r.area].filter(Boolean).join(' · ');
       html += `
-        <div class="review-item" style="cursor:pointer;" onclick="selectRestaurant(${JSON.stringify(r).replace(/"/g, '&quot;')})">
-          <div style="font-weight:600;font-size:0.95em;">${r.name}</div>
-          <div class="review-meta">${r.cuisine_style || r.category || ''} ${r.area ? '· ' + r.area : ''}</div>
-          ${r.address ? `<div class="review-meta">📍 ${r.address}</div>` : ''}
+        <div class="review-item" style="cursor:pointer;" data-idx="${i}">
+          <div style="font-weight:600;font-size:0.95em;">${escHtml(r.name)}</div>
+          ${meta ? `<div class="review-meta">${escHtml(meta)}</div>` : ''}
+          ${r.address ? `<div class="review-meta">📍 ${escHtml(r.address)}</div>` : ''}
         </div>`;
     });
     list.innerHTML = html;
+    list.querySelectorAll('.review-item[data-idx]').forEach(el => {
+      el.addEventListener('click', () => selectRestaurant(parseInt(el.dataset.idx)));
+    });
     container.style.display = "block";
   }
 
-  // 點擊清單或地圖標記都呼叫這個
-  function selectRestaurant(restaurant) {
-    showRestaurantReviews(restaurant);
+  function escHtml(str) {
+    return String(str ?? '')
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
+
+  function selectRestaurant(idxOrObj) {
+    const r = typeof idxOrObj === 'number' ? currentRestaurants[idxOrObj] : idxOrObj;
+    if (!r) return;
+    showRestaurantReviews(r);
     const constrain = document.getElementById('constrain');
     if (constrain) constrain.scrollTop = constrain.scrollHeight;
   }

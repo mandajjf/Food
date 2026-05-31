@@ -597,9 +597,7 @@ def api_restaurants():
     user_lat = data.get("user_lat")
     user_lon = data.get("user_lon")
 
-    # 驗證至少有一個篩選條件不為空（price_min=0 視同 null，不算有效條件）
-    if not any([meal_types, categories, price_min, price_max is not None, distance_limit]):
-        return jsonify({"error": "至少需要一個篩選條件"}), 400
+    # 無篩選條件 = 顯示全部餐廳（不強制要求任何條件）
 
     # 開始查詢餐廳
     query = Restaurant.query
