@@ -109,6 +109,25 @@ with app.app_context():
             _conn.commit()
         except Exception:
             _conn.rollback()
+        # 修正餐廳地址：移除多餘描述文字，確保 Geocoding 正確
+        try:
+            addr_fixes = [
+                (1,  '106臺北市大安區學府里羅斯福路四段1號'),   # 稍飽
+                (2,  '106臺北市大安區學府里羅斯福路四段1號'),   # 福氣盒子
+                (3,  '106臺北市大安區學府里羅斯福路四段1號'),   # 後台咖啡
+                (4,  '106臺北市大安區辛亥路二段100號'),         # JM Cafe
+                (13, '106臺北市大安區學府里羅斯福路四段85號'),  # 龐德羅莎
+                (15, '106臺北市大安區學府里羅斯福路四段85號'),  # 莫凡彼咖啡廳
+                (16, '106臺北市大安區學府里羅斯福路四段85號'),  # 小蔬杭
+            ]
+            for rid, new_addr in addr_fixes:
+                _conn.execute(
+                    db.text("UPDATE restaurants SET address = :addr WHERE id = :id"),
+                    {"addr": new_addr, "id": rid}
+                )
+            _conn.commit()
+        except Exception:
+            _conn.rollback()
 
 
 # ---------------------------------------------------------------------------
