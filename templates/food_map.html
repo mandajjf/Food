@@ -545,17 +545,19 @@
       return;
     }
 
-    let html = `<p style="font-size:0.85em;color:#666;margin-bottom:8px;font-weight:600;">${escHtml(restaurant.name)} 的評論</p>`;
+    let html = `<p style="font-size:0.85em;color:#666;margin-bottom:8px;font-weight:600;">${escHtml(restaurant.name)} 的評論（${restaurant.reviews.length} 筆）</p>`;
     restaurant.reviews.forEach(review => {
       html += `
         <div class="review-item">
-          <div class="review-meta">
-            ${review.visit_date || ''} ${review.meal_type ? '· ' + review.meal_type : ''} · ⭐ ${review.rating || "未評分"}
+          <div class="review-meta" style="display:flex;justify-content:space-between;align-items:center;">
+            <span>👤 ${escHtml(review.username || '匿名')}</span>
+            <span>${review.visit_date || ''} ${review.meal_type ? '· ' + review.meal_type : ''}</span>
           </div>
+          <div class="review-meta">⭐ ${review.rating ? '★'.repeat(review.rating) + '☆'.repeat(5 - review.rating) : '未評分'}</div>
           <div class="review-comment">${escHtml(review.comment || "無備註")}</div>
           <div class="review-nutrition">
-            ${review.calories ? `熱量: ${review.calories} kcal` : ''}
-            ${review.protein ? (review.calories ? ' · ' : '') + `蛋白質: ${review.protein}g` : ''}
+            ${review.calories ? `🔥 ${review.calories} kcal` : ''}
+            ${review.protein ? (review.calories ? ' · ' : '') + `💪 ${review.protein}g` : ''}
           </div>
         </div>`;
     });

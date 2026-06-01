@@ -711,10 +711,9 @@ def api_restaurants():
         else:
             query = query.filter(name_filter)
 
-    # 根據餐別篩選（透過 restaurant_name 關聯）
+    # 根據餐別篩選（顯示所有使用者記錄過此餐別的餐廳）
     if meal_types:
         names = [r[0] for r in db.session.query(Review.restaurant_name).distinct().filter(
-            Review.user_id == session["user_id"],
             Review.meal_type.in_(meal_types)
         ).all()]
         if names:
@@ -788,7 +787,8 @@ def api_restaurants():
     # 組合回傳資料，包含 lat/lng（如果有）與 reviews
     result = []
     for restaurant in filtered_restaurants:
-        reviews = Review.query.filter_by(restaurant_name=restaurant.name, user_id=session.get("user_id")).all()
+        # 回傳所有使用者對此餐廳的評論
+        reviews = Review.query.filter_by(restaurant_name=restaurant.name).all()
         # 優先使用資料庫中已存的座標，其次才用距離篩選時計算的暫時座標
         lat = restaurant.latitude or getattr(restaurant, "_geo_lat", None)
         lng = restaurant.longitude or getattr(restaurant, "_geo_lng", None)
@@ -806,6 +806,7 @@ def api_restaurants():
             "reviews": [
                 {
                     "id": r.id,
+                    "username": r.user.username if r.user else "未知使用者",
                     "meal_type": r.meal_type,
                     "rating": r.rating,
                     "comment": r.comment,
