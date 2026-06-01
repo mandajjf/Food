@@ -238,11 +238,8 @@
     <!-- 提交按鈕 -->
     <button class="submit-btn" id="submitBtn">搜尋餐廳</button>
 
-    <!-- 評論區（搜尋後出現，在側邊欄內） -->
-    <div class="reviews-container" id="reviewsContainer" style="display: none;">
-      <h5>餐廳評論</h5>
-      <div id="reviewsList"></div>
-    </div>
+    <!-- 結果區（搜尋後出現，內容由 JS 完全管理） -->
+    <div class="reviews-container" id="reviewsContainer" style="display: none;"></div>
   </div>
 </div>
 
@@ -444,7 +441,6 @@
   }
 
   function showRestaurantList(restaurants) {
-    const list = document.getElementById("reviewsList");
     const container = document.getElementById("reviewsContainer");
     let html = `<p style="font-size:0.85em;color:#666;margin-bottom:8px;">找到 ${restaurants.length} 間餐廳，點擊查看評論</p>`;
     restaurants.forEach((r, i) => {
@@ -456,8 +452,8 @@
           ${r.address ? `<div class="review-meta">📍 ${escHtml(r.address)}</div>` : ''}
         </div>`;
     });
-    list.innerHTML = html;
-    list.querySelectorAll('.review-item[data-idx]').forEach(el => {
+    container.innerHTML = html;
+    container.querySelectorAll('.review-item[data-idx]').forEach(el => {
       el.addEventListener('click', () => selectRestaurant(parseInt(el.dataset.idx)));
     });
     container.style.display = "block";
@@ -524,30 +520,30 @@
   }
   
   function showRestaurantReviews(restaurant) {
-    const reviewsList = document.getElementById("reviewsList");
-    
+    const container = document.getElementById("reviewsContainer");
+
     if (!restaurant.reviews || restaurant.reviews.length === 0) {
-      reviewsList.innerHTML = '<div class="loading">暫無評論</div>';
+      container.innerHTML = `
+        <p style="font-size:0.85em;color:#666;margin-bottom:8px;font-weight:600;">${escHtml(restaurant.name)}</p>
+        <div class="loading">尚無個人評論</div>`;
       return;
     }
-    
-    let reviewsHTML = '';
+
+    let html = `<p style="font-size:0.85em;color:#666;margin-bottom:8px;font-weight:600;">${escHtml(restaurant.name)} 的評論</p>`;
     restaurant.reviews.forEach(review => {
-      reviewsHTML += `
+      html += `
         <div class="review-item">
           <div class="review-meta">
-            ${review.visit_date} · ${review.meal_type} · ⭐ ${review.rating || "未評分"}
+            ${review.visit_date || ''} ${review.meal_type ? '· ' + review.meal_type : ''} · ⭐ ${review.rating || "未評分"}
           </div>
-          <div class="review-comment">${review.comment || "無備註"}</div>
+          <div class="review-comment">${escHtml(review.comment || "無備註")}</div>
           <div class="review-nutrition">
-            ${review.calories ? `熱量: ${review.calories} kcal` : ""}
-            ${review.protein ? (review.calories ? " · " : "") + `蛋白質: ${review.protein}g` : ""}
+            ${review.calories ? `熱量: ${review.calories} kcal` : ''}
+            ${review.protein ? (review.calories ? ' · ' : '') + `蛋白質: ${review.protein}g` : ''}
           </div>
-        </div>
-      `;
+        </div>`;
     });
-    
-    reviewsList.innerHTML = reviewsHTML;
+    container.innerHTML = html;
   }
   
   function loadDietProgress() {
