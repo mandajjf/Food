@@ -83,6 +83,7 @@ class Restaurant(db.Model):
     is_seeded  = db.Column(db.Boolean, default=False, nullable=False)
     latitude   = db.Column(db.Float, nullable=True)   # 緯度，例：25.0175
     longitude  = db.Column(db.Float, nullable=True)   # 經度，例：121.5398
+    plus_code  = db.Column(db.String(20), nullable=True)  # Google Plus Code，例：2G9R+73
 
     menu_items = db.relationship(
         "MenuItem", backref="restaurant", lazy=True, cascade="all, delete-orphan"

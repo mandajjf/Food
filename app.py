@@ -72,6 +72,7 @@ with app.app_context():
         _add_column_if_missing(_conn, "restaurants", "is_seeded",  "BOOLEAN DEFAULT FALSE")
         _add_column_if_missing(_conn, "restaurants", "latitude",   "FLOAT")
         _add_column_if_missing(_conn, "restaurants", "longitude",  "FLOAT")
+        _add_column_if_missing(_conn, "restaurants", "plus_code",  "VARCHAR(20)")
         # 將 seed 匯入的餐廳（created_by IS NULL）標記為 is_seeded = TRUE
         try:
             _conn.execute(db.text(
@@ -129,6 +130,43 @@ with app.app_context():
                 )
             _conn.commit()
         except Exception:
+            _conn.rollback()
+        # 填入 Plus Code 並解碼成 lat/lng（台大校區參考點）
+        try:
+            from openlocationcode import openlocationcode as olc
+            # 台大校區中心作為短 Plus Code 的參考點
+            _REF_LAT, _REF_LNG = 25.0175, 121.5398
+            _plus_codes = [
+                (1,  '2GCQ+37'),  # 稍飽
+                (3,  '2GCM+PV'),  # 後台咖啡
+                (4,  '2GCQ+M3'),  # JM Cafe & Bistro
+                (5,  '2G9R+73'),  # 御喜自助餐
+                (7,  '2G9R+42'),  # 糧晨get食
+                (8,  '2G9R+63'),  # 蛋白盒子
+                (9,  '2G9R+64'),  # 食香園素食館
+                (10, '2G9R+64'),  # 四海遊龍
+                (11, '2G8Q+62'),  # 小木屋鬆餅
+                (13, '2G7P+6P'),  # 龐德羅莎
+                (14, '2G7P+5H'),  # 魯山人壽喜鍋物
+                (15, '2G7P+5J'),  # 莫凡彼咖啡廳
+                (16, '2G7P+4P'),  # 小蔬杭
+                (17, '2G7P+6P'),  # 曉鹿鳴樓
+                (18, '2G7P+6P'),  # 熊一頂級燒肉
+                (19, '2G7Q+R6'),  # 重慶抄手
+                (21, '2G7P+9G'),  # 義饗食堂
+            ]
+            for rid, code in _plus_codes:
+                full = olc.recoverNearest(code, _REF_LAT, _REF_LNG)
+                area = olc.decode(full)
+                lat  = (area.latitudeLo  + area.latitudeHi)  / 2
+                lng  = (area.longitudeLo + area.longitudeHi) / 2
+                _conn.execute(
+                    db.text("UPDATE restaurants SET plus_code=:code, latitude=:lat, longitude=:lng"
+                            " WHERE id=:id AND (latitude IS NULL OR plus_code IS NULL)"),
+                    {"code": code, "lat": round(lat, 6), "lng": round(lng, 6), "id": rid}
+                )
+            _conn.commit()
+        except Exception as e:
             _conn.rollback()
 
 
