@@ -603,7 +603,7 @@ def haversine_distance(lat1, lon1, lat2, lon2):
 def api_restaurants():
     """根據篩選條件返回符合的餐廳列表，並回傳可供前端使用的經緯度與評論資料。"""
     data = request.get_json(force=True, silent=True)
-    if not data:
+    if data is None:
         return jsonify({"error": "無效的 JSON"}), 400
 
     # 提取篩選條件

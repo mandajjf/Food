@@ -297,6 +297,16 @@
     "6.5": 6
   };
   
+  // 搜尋按鈕 & 滑塊事件獨立於 Google Maps，頁面載入即可使用
+  document.addEventListener("DOMContentLoaded", function () {
+    updatePriceDisplay();
+    document.getElementById("priceMin").addEventListener("input", updatePriceDisplay);
+    document.getElementById("priceMax").addEventListener("input", updatePriceDisplay);
+    document.getElementById("submitBtn").addEventListener("click", searchRestaurants);
+    loadDietProgress();
+  });
+
+  // Google Maps 載入完成後才初始化地圖（不影響搜尋功能）
   function initMap() {
     map = new google.maps.Map(document.getElementById("map"), {
       center: { lat: 25.017554367254085, lng: 121.53976252434965 },
@@ -315,7 +325,7 @@
         }
       ]
     });
-    
+
     navigator.geolocation.getCurrentPosition(function(position) {
       currentPosition = {
         lat: position.coords.latitude,
@@ -323,8 +333,6 @@
       };
       map.setCenter(currentPosition);
       map.setZoom(17);
-      
-      // 添加用戶位置標記
       new google.maps.Marker({
         position: currentPosition,
         map: map,
@@ -332,19 +340,6 @@
         icon: "http://maps.google.com/mapfiles/ms/icons/orange-dot.png"
       });
     });
-    
-    // 初始化價位顯示
-    updatePriceDisplay();
-    
-    // 添加價位滑塊事件監聽
-    document.getElementById("priceMin").addEventListener("input", updatePriceDisplay);
-    document.getElementById("priceMax").addEventListener("input", updatePriceDisplay);
-    
-    // 添加搜尋按鈕事件
-    document.getElementById("submitBtn").addEventListener("click", searchRestaurants);
-    
-    // 加載飲控進度（如果開啟飲控模式）
-    loadDietProgress();
   }
   
   function updatePriceDisplay() {
@@ -483,6 +478,7 @@
   }
 
   function addRestaurantMarker(restaurant) {
+    if (!map || typeof google === 'undefined') return; // 地圖未載入時略過 marker
     const geocoder = new google.maps.Geocoder();
 
     const placeMarker = (location) => {
