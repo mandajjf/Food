@@ -432,7 +432,21 @@
 
       currentRestaurants = data.restaurants;
       showRestaurantList(data.restaurants);
-      data.restaurants.forEach(r => addRestaurantMarker(r));
+
+      if (!map || typeof google === 'undefined') {
+        console.warn("Google Maps 未載入，略過地圖標記");
+        return;
+      }
+      let geocodeOk = 0, geocodeFail = 0;
+      const total = data.restaurants.filter(r => r.address).length;
+      data.restaurants.forEach(r => addRestaurantMarker(r, () => {
+        geocodeOk++;
+      }, () => {
+        geocodeFail++;
+        if (geocodeOk + geocodeFail === total && geocodeOk === 0) {
+          console.error("所有 Geocoding 皆失敗，請確認 Geocoding API 是否已在 Google Cloud Console 啟用");
+        }
+      }));
     })
     .catch(error => {
       console.error("搜尋錯誤:", error);
@@ -473,17 +487,16 @@
     if (constrain) constrain.scrollTop = constrain.scrollHeight;
   }
 
-  function addRestaurantMarker(restaurant) {
-    if (!map || typeof google === 'undefined') return; // 地圖未載入時略過 marker
-    const geocoder = new google.maps.Geocoder();
+  function addRestaurantMarker(restaurant, onSuccess, onFail) {
+    if (!map || typeof google === 'undefined') return;
 
     const placeMarker = (location) => {
       const infoContent = `
         <div style="padding:8px;">
-          <strong>${restaurant.name}</strong><br>
+          <strong>${escHtml(restaurant.name)}</strong><br>
           <span style="font-size:0.85em;color:#666;">
-            ${restaurant.cuisine_style || restaurant.category || ''}
-            ${restaurant.area ? ' · ' + restaurant.area : ''}
+            ${escHtml(restaurant.cuisine_style || restaurant.category || '')}
+            ${restaurant.area ? ' · ' + escHtml(restaurant.area) : ''}
           </span>
         </div>`;
       const infoWindow = new google.maps.InfoWindow({ content: infoContent });
@@ -500,9 +513,10 @@
       });
       markers.push(marker);
       infoWindows.push(infoWindow);
+      if (onSuccess) onSuccess();
     };
 
-    // 優先用後端已計算的座標
+    // 優先用後端已計算的座標（距離篩選時有值）
     if (restaurant.lat != null && restaurant.lng != null) {
       placeMarker({ lat: restaurant.lat, lng: restaurant.lng });
       return;
@@ -510,11 +524,13 @@
 
     if (!restaurant.address) return;
 
+    const geocoder = new google.maps.Geocoder();
     geocoder.geocode({ address: restaurant.address }, (results, status) => {
       if (status === "OK" && results.length > 0) {
         placeMarker(results[0].geometry.location);
       } else {
         console.warn(`Geocoding 失敗 [${status}]:`, restaurant.name, restaurant.address);
+        if (onFail) onFail();
       }
     });
   }
