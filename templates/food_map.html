@@ -593,9 +593,18 @@
   }
 </script>
 
+{% if api_key %}
 <script async
-  src="https://maps.googleapis.com/maps/api/js?key={{ api_key }}&libraries=places,geocoding&callback=initMap&region=TW&language=zh-TW"
+  src="https://maps.googleapis.com/maps/api/js?key={{ api_key }}&libraries=geocoding&callback=initMap&region=TW&language=zh-TW"
 ></script>
+{% else %}
+<script>
+  // api_key 未設定，地圖功能停用，但搜尋列表仍可正常使用
+  console.warn("GOOGLE_MAPS_API_KEY 未設定，地圖無法載入");
+  document.getElementById("map").innerHTML =
+    '<div style="display:flex;align-items:center;justify-content:center;height:100%;background:#f5f5f5;color:#999;font-size:0.9em;">🗺️ 地圖暫時無法載入（API Key 未設定）</div>';
+</script>
+{% endif %}
 
 {% endblock %}
 
