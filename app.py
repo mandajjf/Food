@@ -70,6 +70,8 @@ with app.app_context():
         _add_column_if_missing(_conn, "reviews",     "protein",    "FLOAT")
         _add_column_if_missing(_conn, "restaurants", "created_by", "INTEGER")
         _add_column_if_missing(_conn, "restaurants", "is_seeded",  "BOOLEAN DEFAULT FALSE")
+        _add_column_if_missing(_conn, "restaurants", "latitude",   "FLOAT")
+        _add_column_if_missing(_conn, "restaurants", "longitude",  "FLOAT")
         # 將 seed 匯入的餐廳（created_by IS NULL）標記為 is_seeded = TRUE
         try:
             _conn.execute(db.text(
@@ -749,8 +751,9 @@ def api_restaurants():
     result = []
     for restaurant in filtered_restaurants:
         reviews = Review.query.filter_by(restaurant_name=restaurant.name, user_id=session.get("user_id")).all()
-        lat = getattr(restaurant, "_geo_lat", None)
-        lng = getattr(restaurant, "_geo_lng", None)
+        # 優先使用資料庫中已存的座標，其次才用距離篩選時計算的暫時座標
+        lat = restaurant.latitude or getattr(restaurant, "_geo_lat", None)
+        lng = restaurant.longitude or getattr(restaurant, "_geo_lng", None)
         result.append({
             "id": restaurant.id,
             "name": restaurant.name,
