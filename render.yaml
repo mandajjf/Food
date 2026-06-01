@@ -13,6 +13,8 @@ services:
           property: connectionString
       - key: FLASK_ENV
         value: production
+      - key: GOOGLE_MAPS_API_KEY
+        sync: false  # 手動在 Render Dashboard 填入，不寫在此檔案
 
 databases:
   - name: foodmap-db
